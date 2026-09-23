@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.
 
 package tool
 
@@ -73,7 +74,12 @@ func (fr *FileReader) Read(ctx context.Context, path string) (string, error) {
 	case ModeWorkspace:
 		return fr.readFromDisk(path)
 	case ModeRange, ModeCommit:
-		return fr.readFromGitShow(ctx, path)
+		content, err := fr.readFromGitShow(ctx, path)
+		if err != nil && isDependencyPath(path) {
+			// Installed dependencies are not in the reviewed tree.
+			return fr.readFromDisk(path)
+		}
+		return content, err
 	default:
 		return fr.readFromDisk(path)
 	}
@@ -146,7 +152,11 @@ func (fr *FileReader) ReadLines(ctx context.Context, path string, startLine, max
 	case ModeRange, ModeCommit:
 		innerCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		return fr.readLinesFromGitShow(innerCtx, path, startLine, maxLines)
+		lines, total, err := fr.readLinesFromGitShow(innerCtx, path, startLine, maxLines)
+		if err != nil && isDependencyPath(path) {
+			return fr.readLinesFromDisk(path, startLine, maxLines)
+		}
+		return lines, total, err
 	default:
 		return fr.readLinesFromDisk(path, startLine, maxLines)
 	}
