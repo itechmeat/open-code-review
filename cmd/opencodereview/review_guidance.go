@@ -9,16 +9,34 @@ import (
 	"github.com/alibaba/open-code-review/internal/config/template"
 )
 
-// reviewGuidance extends the main review prompt with two habits field runs
-// showed missing: hedged "one of them is wrong" findings anchored on the
-// correct side, and fixes proposed in generated output instead of its source.
+// reviewGuidance extends the main review prompt with habits field runs showed
+// missing: hedged "one of them is wrong" findings anchored on the correct
+// side, fixes proposed in generated output instead of its source, and empty
+// lookups reported as "not available" instead of being retried.
 const reviewGuidance = `## Contradictions and generated code
 - When two places disagree (code and test, an invariant and a comment, a schema and its generator, a caller and a library), establish which side is wrong before commenting: read the source that decides it, including installed dependency code under node_modules/, vendor/ or site-packages/. Anchor the comment on the side that is wrong. Say that one of them is wrong only when the evidence cannot decide.
-- When a generated file is wrong, find the generator or source file that produces it and name that file in the comment; the fix belongs there, not in the generated output. When that source is among the review files, comment on the source.`
+- When a generated file is wrong, find the generator or source file that produces it and name that file in the comment; the fix belongs there, not in the generated output. When that source is among the review files, comment on the source.
+- An empty tool result is not a fact about the code. Read the tool's explanation (no file matched the pattern, or nothing matched in the files), then try another path, name or search; installed dependency sources are available. Never write a comment whose point is that something could not be checked or is unavailable to you.`
+
+// filterToolLimitGround adds a removal ground to the review filter: a claim
+// about the reviewer's own tools is not a defect in the diff.
+const filterToolLimitGround = `### Also remove
+A comment whose central claim is that the reviewer could not check something, or that a file, dependency or tool was unavailable. Such claims are about the reviewer's tools, not defects in the diff.`
 
 func appendReviewGuidance(tpl *template.Template) {
 	if tpl == nil {
 		return
+	}
+	if tpl.ReviewFilterTask != nil {
+		for i := range tpl.ReviewFilterTask.Messages {
+			m := &tpl.ReviewFilterTask.Messages[i]
+			if m.Role == "system" {
+				if !strings.Contains(m.Content, filterToolLimitGround) {
+					m.Content = strings.TrimRight(m.Content, "\n") + "\n\n" + filterToolLimitGround
+				}
+				break
+			}
+		}
 	}
 	for i := range tpl.MainTask.Messages {
 		m := &tpl.MainTask.Messages[i]

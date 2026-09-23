@@ -42,3 +42,29 @@ func TestReviewDedupPromptMergesSharedRootCauses(t *testing.T) {
 		t.Error("scan's own dedup prompt must stay untouched")
 	}
 }
+
+func TestReviewGuidanceRejectsToolLimitClaims(t *testing.T) {
+	tpl, err := template.LoadDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendReviewGuidance(tpl)
+	if !strings.Contains(tpl.MainTask.Messages[0].Content, "could not be checked") {
+		t.Error("the main prompt must forbid reporting tool limits as findings")
+	}
+	var filterSystem string
+	for _, m := range tpl.ReviewFilterTask.Messages {
+		if m.Role == "system" {
+			filterSystem = m.Content
+		}
+	}
+	if strings.Count(filterSystem, "reviewer's tools") != 1 {
+		t.Errorf("the filter must remove tool-limit comments exactly once:\n%s", filterSystem)
+	}
+	appendReviewGuidance(tpl)
+	for _, m := range tpl.ReviewFilterTask.Messages {
+		if m.Role == "system" && strings.Count(m.Content, "reviewer's tools") != 1 {
+			t.Error("filter guidance must be idempotent")
+		}
+	}
+}

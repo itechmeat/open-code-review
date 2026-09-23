@@ -14,7 +14,7 @@ import (
 // caller reading only stderr can tell a thorough zero-finding review from a
 // skipped or shallow one without parsing the report.
 func machineRunSummary(m *session.RunManifest, comments int, toolCalls map[string]int64,
-	id *jsonLLMIdentity, elapsed time.Duration, sessionID string, tokens int64, dedup string) string {
+	id *jsonLLMIdentity, elapsed time.Duration, sessionID string, tokens int64, dedup string, llmErrors int64) string {
 	status, files := "unknown", "0/0"
 	if m != nil {
 		status = string(m.TerminalState)
@@ -37,8 +37,10 @@ func machineRunSummary(m *session.RunManifest, comments int, toolCalls map[strin
 	if sessionID == "" {
 		sessionID = "-"
 	}
-	line := fmt.Sprintf("[ocr] Summary: status=%s files=%s comments=%d tool_calls=%d tokens=%d provider=%s model=%s elapsed=%s session=%s",
-		status, files, comments, calls, tokens, provider, model, elapsed.Round(time.Second), sessionID)
+	// llm_errors counts model calls that failed for good; a failed filter or
+	// plan call leaves the run "complete" with less work done than it says.
+	line := fmt.Sprintf("[ocr] Summary: status=%s files=%s comments=%d tool_calls=%d tokens=%d llm_errors=%d provider=%s model=%s elapsed=%s session=%s",
+		status, files, comments, calls, tokens, llmErrors, provider, model, elapsed.Round(time.Second), sessionID)
 	// elapsed covers post-run steps such as dedup, which the manifest's
 	// elapsed_ms (frozen when the review finished) does not.
 	if dedup != "" {

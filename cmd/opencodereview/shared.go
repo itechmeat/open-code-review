@@ -861,7 +861,13 @@ func emitRunResult(
 		if d, ok := ag.(interface{ DedupStatus() string }); ok {
 			dedup = d.DedupStatus()
 		}
-		fmt.Fprintln(os.Stderr, machineRunSummary(manifest, len(comments), ag.ToolCalls(), llmIdentity, duration, ag.SessionID(), ag.TotalTokensUsed(), dedup))
+		var llmErrors int64
+		if h, ok := ag.(interface {
+			Session() *session.SessionHistory
+		}); ok && h.Session() != nil {
+			llmErrors = h.Session().LLMFailures()
+		}
+		fmt.Fprintln(os.Stderr, machineRunSummary(manifest, len(comments), ag.ToolCalls(), llmIdentity, duration, ag.SessionID(), ag.TotalTokensUsed(), dedup, llmErrors))
 	}
 	if !machineReadable {
 		telemetry.PrintTraceSummary(telemetry.TraceSummary{

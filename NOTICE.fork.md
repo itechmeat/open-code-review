@@ -46,9 +46,12 @@ it can be offered upstream:
 | built-in rule for test files (`*.test.*`, `*.spec.*`, `__tests__/`, `*_test.go`, `test_*.py`, `*_test.py`) | once tests are included, they are reviewed for real assertions, consistent fixtures and isolation instead of the generic language checklist |
 | `examples/rules/docs.rule.json` | opt-in: includes Markdown/MDX/RST/AsciiDoc and reviews them for accuracy against the code, contradictions and broken examples |
 | the claude-code provider skips terminal-integration shims on `PATH` (cmux) and drops `CMUX_SURFACE_ID` | headless runs are not given the terminal's hooks, session ids or MCP server |
-| `code_search` and `file_read` reach installed dependency sources (`node_modules/`, `vendor/`, `site-packages/`) in every mode; other ignored files and secret paths stay unreachable | "No matches found" no longer means "not searchable", so contradictions with a library can be settled instead of hedged |
+| `code_search`, `file_read` and `file_find` reach installed dependency sources (`node_modules/`, `vendor/`, `site-packages/`) in every mode; other ignored files, secret paths, `..` escapes and symlinks out of those directories stay unreachable | "No matches found" no longer means "not searchable", so contradictions with a library can be settled instead of hedged |
 | the review prompt asks to settle which side of a contradiction is wrong and to name the generator when generated output is wrong | findings land on the file that needs the fix |
 | review dedup also merges findings that share one root cause and names the file to fix | one generator bug reported from several generated files comes back once |
+| an empty `code_search` says why: file_patterns that match no file are named, a regex-looking literal (`a\|b`) is retried as a regex | "No matches found" is no longer read as "does not exist" |
+| the review prompt forbids findings about the reviewer's own tool limits, and the filter removes them | no "node_modules isn't available here" comments |
+| the claude-code provider retries an unexplained API error once; the Summary line counts failed model calls as `llm_errors=N` | a refused filter call no longer vanishes silently |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 
 The fork talks to Claude only through the official `claude` binary. It never
@@ -142,6 +145,7 @@ Added:
   `internal/config/rules/provenance.go`, and in `cmd/opencodereview/`:
   `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, `review_dedup.go`,
   `review_guidance.go`, `llm_close.go`, and `internal/tool/dependency_source.go`,
+  `internal/tool/search_diagnostics.go`,
   with their tests
 - `examples/rules/structured-data.rule.json`, `examples/rules/docs.rule.json`
 - `internal/config/rules/rule_docs/tests.md`
@@ -154,7 +158,7 @@ Modified (small, local edits, each marked under the license header with
 
 - `internal/llm/protocol.go`, `client.go`, `providers.go`, `providers_test.go`
 - `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
-- `internal/tool/code_search.go`, `internal/tool/filereader.go`
+- `internal/tool/code_search.go`, `internal/tool/filereader.go`, `internal/tool/file_find.go`
 - `internal/config/rules/system_rules.go`, `system_rules.json` (test-file
   patterns ahead of the language rules)
 - `cmd/opencodereview/`: `llm_cmd.go`, `rules_cmd.go`, `review_cmd.go`,
