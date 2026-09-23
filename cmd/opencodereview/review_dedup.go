@@ -17,30 +17,31 @@ import (
 // dedupReviewComments merges findings that different file groups reported
 // about the same problem, reusing scan's DEDUP_TASK. The session keeps the
 // raw per-file comments; only the reported set is merged. Any failure keeps
-// the comments as they are.
+// the comments as they are. The usage of the extra call is returned so it
+// counts toward the run's token totals.
 func dedupReviewComments(ctx context.Context, client llm.LLMClient, modelName string, maxTokens int,
-	comments []model.LlmComment, skip bool) []model.LlmComment {
+	comments []model.LlmComment, skip bool) ([]model.LlmComment, *llm.UsageInfo) {
 	if skip {
-		return comments
+		return comments, nil
 	}
 	tpl, err := template.LoadScanDefault()
 	if err != nil || tpl.DedupTask == nil || len(tpl.DedupTask.Messages) == 0 {
-		return comments
+		return comments, nil
 	}
 	minN := tpl.DedupMinComments
 	if minN <= 0 {
 		minN = 2
 	}
 	if len(comments) < minN {
-		return comments
+		return comments, nil
 	}
-	out, _, err := scan.DedupComments(ctx, client, modelName, tpl.DedupTask, comments, maxTokens)
+	out, usage, err := scan.DedupComments(ctx, client, modelName, tpl.DedupTask, comments, maxTokens)
 	if err != nil {
 		fmt.Fprintf(stdout.Writer(), "[ocr] Dedup skipped: %v\n", err)
-		return comments
+		return comments, usage
 	}
 	if len(out) < len(comments) {
 		fmt.Fprintf(stdout.Writer(), "[ocr] Dedup: %d → %d comments\n", len(comments), len(out))
 	}
-	return out
+	return out, usage
 }

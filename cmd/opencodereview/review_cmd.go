@@ -271,7 +271,9 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 
 	comments, runErr := ag.Run(runCtx)
 	if runErr == nil {
-		comments = dedupReviewComments(runCtx, rt.Client, rt.Model, cc.Template.CompletionTokenLimit(), comments, opts.noDedup)
+		var dedupUsage *llm.UsageInfo
+		comments, dedupUsage = dedupReviewComments(runCtx, rt.Client, rt.Model, cc.Template.CompletionTokenLimit(), comments, opts.noDedup)
+		ag.RecordExtraUsage(dedupUsage)
 	}
 	manifest := ag.RunManifest()
 
