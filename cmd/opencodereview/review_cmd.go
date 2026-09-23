@@ -271,9 +271,10 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	startTime := time.Now()
 
 	comments, runErr := ag.Run(runCtx)
+	var dedupStatus string
 	if runErr == nil {
 		var dedupUsage *llm.UsageInfo
-		comments, dedupUsage = dedupReviewComments(runCtx, rt.Client, rt.Model, cc.Template.CompletionTokenLimit(), comments, opts.noDedup)
+		comments, dedupUsage, dedupStatus = dedupReviewComments(runCtx, rt.Client, rt.Model, cc.Template.CompletionTokenLimit(), comments, opts.noDedup)
 		ag.RecordExtraUsage(dedupUsage)
 	}
 	manifest := ag.RunManifest()
@@ -305,7 +306,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	var emitErr error
 	emitted := manifest != nil || runErr == nil
 	if emitted {
-		emitErr = emitRunResult(runCtx, ag, comments, startTime, opts.outputFormat, opts.audience, q, llmIdentity, out, retryReport)
+		emitErr = emitRunResult(runCtx, dedupAwareResult{ag, dedupStatus}, comments, startTime, opts.outputFormat, opts.audience, q, llmIdentity, out, retryReport)
 		if emitErr != nil {
 			emitErr = fmt.Errorf("emit review result: %w", emitErr)
 		} else {
