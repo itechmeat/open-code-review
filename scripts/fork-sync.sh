@@ -61,8 +61,11 @@ if [ "$install" = 1 ]; then
 	version=$(git describe --tags --always)
 	commit=$(git rev-parse --short HEAD)
 	built=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	# Build beside the target and rename: go build refuses to overwrite a file
+	# that is not a Go binary, such as a shell wrapper left by an npm install.
 	go build -ldflags "-X main.Version=${version} -X main.GitCommit=${commit} -X main.BuildDate=${built}" \
-		-o "${BIN_DIR}/ocr" ./cmd/opencodereview
+		-o "${BIN_DIR}/ocr.new" ./cmd/opencodereview
+	mv -f "${BIN_DIR}/ocr.new" "${BIN_DIR}/ocr"
 	agent="${repo}/plugins/open-code-review/claude-code/agents/ocr-reviewer.md"
 	if [ ! -f "$agent" ]; then
 		echo "missing $agent; the fork's files did not survive the rebase" >&2
