@@ -52,3 +52,23 @@ func TestCodeSearchSaysWhenPatternsMatchNoFiles(t *testing.T) {
 		t.Errorf("a real miss must say the files were searched:\n%s", got)
 	}
 }
+
+// A bare glob such as *.d.ts used to search only the reviewed tree and report
+// a plain miss, although the declarations lived under node_modules.
+func TestCodeSearchBareGlobFallsBackToDependencies(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got := runSearch(t, p, map[string]any{"search_text": "openOnHover", "file_patterns": []any{"*.js"}})
+	if !strings.Contains(got, "node_modules/@base-ui/react/menu/trigger/MenuTrigger.js") || !strings.Contains(got, "installed dependency sources") {
+		t.Errorf("bare glob did not fall back to dependency sources:\n%s", got)
+	}
+}
+
+func TestCodeSearchWithoutPatternsHintsAtDependencies(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got := runSearch(t, p, map[string]any{"search_text": "openOnHover"})
+	if !strings.HasPrefix(got, "No matches found") || !strings.Contains(got, "not searched") {
+		t.Errorf("an unscoped miss must say dependencies were not searched:\n%s", got)
+	}
+}

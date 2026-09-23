@@ -38,7 +38,10 @@ func (p *CodeSearchProvider) searchWithDiagnostics(ctx context.Context, text str
 		}
 	}
 	if len(patterns) == 0 {
-		return result, nil
+		return noMatches + ". Installed dependency sources were not searched; name them in file_patterns (for example node_modules/<package>/) to search them.", nil
+	}
+	if deps := p.bareGlobDependencySearch(ctx, text, caseSensitive, usePerl, patterns); deps != "" {
+		return "Note: nothing matched in the reviewed tree; results below come from installed dependency sources of the reviewed tree.\n" + deps, nil
 	}
 	var empty []string
 	for _, pattern := range patterns {
@@ -67,6 +70,42 @@ func (p *CodeSearchProvider) search(ctx context.Context, text string, caseSensit
 		return "", err
 	}
 	return combineSearchResults(repoResult, depResult), nil
+}
+
+// bareGlobDependencySearch retries slash-free patterns (*.d.ts, index.js)
+// under each dependency directory of the reviewed tree. Patterns with a path
+// already say where to look, so they are not widened.
+func (p *CodeSearchProvider) bareGlobDependencySearch(ctx context.Context, text string, caseSensitive, usePerl bool, patterns []string) string {
+	var bare []string
+	for _, pattern := range patterns {
+		if !strings.Contains(pattern, "/") {
+			bare = append(bare, pattern)
+		}
+	}
+	if len(bare) == 0 {
+		return ""
+	}
+	var scoped []string
+	for _, root := range p.FileReader.dependencyRoots(ctx) {
+		if root.stray {
+			continue
+		}
+		for _, pattern := range bare {
+			scoped = append(scoped, root.dir+"/"+pattern)
+		}
+	}
+	if len(scoped) == 0 {
+		return ""
+	}
+	if got, err := p.searchDependencies(ctx, text, caseSensitive, usePerl, scoped); err == nil && got != noMatches {
+		return got
+	}
+	if !usePerl && regexLike.MatchString(text) {
+		if got, err := p.searchDependencies(ctx, text, caseSensitive, true, scoped); err == nil && got != noMatches {
+			return got
+		}
+	}
+	return ""
 }
 
 // patternMatchesFiles asks git which files the pattern selects, with the same
@@ -114,7 +153,7 @@ func (p *FileFindProvider) findDependencyFiles(ctx context.Context, query string
 		query = strings.ToLower(query)
 	}
 	deadline := time.Now().Add(dependencyFileWalkBudget)
-	roots := p.dependencyRoots(ctx)
+	roots := p.FileReader.dependencyRoots(ctx)
 	walkRoots := roots
 	if roots == nil {
 		walkRoots = []dependencyRoot{{dir: "."}}
@@ -134,8 +173,8 @@ func (p *FileFindProvider) findDependencyFiles(ctx context.Context, query string
 // dependencyRoots lists the ignored dependency directories without entering
 // them, so the walk skips the rest of a large repository. It returns nil when
 // git cannot answer, and the caller walks the whole tree instead.
-func (p *FileFindProvider) dependencyRoots(ctx context.Context) []dependencyRoot {
-	out, err := p.git(ctx, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory")
+func (fr *FileReader) dependencyRoots(ctx context.Context) []dependencyRoot {
+	out, err := fr.git(ctx, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory")
 	if err != nil {
 		return nil
 	}
@@ -145,34 +184,34 @@ func (p *FileFindProvider) dependencyRoots(ctx context.Context) []dependencyRoot
 		if dir == "" || !dependencyDirs[path.Base(dir)] {
 			continue
 		}
-		roots = append(roots, dependencyRoot{dir: dir, stray: !p.inReviewedTree(ctx, path.Dir(dir))})
+		roots = append(roots, dependencyRoot{dir: dir, stray: !fr.inReviewedTree(ctx, path.Dir(dir))})
 	}
 	return roots
 }
 
 // inReviewedTree reports whether dir holds files of the reviewed tree: at the
 // ref in range and commit mode, tracked files in workspace mode.
-func (p *FileFindProvider) inReviewedTree(ctx context.Context, dir string) bool {
+func (fr *FileReader) inReviewedTree(ctx context.Context, dir string) bool {
 	if dir == "." || dir == "" {
 		return true
 	}
 	var out string
 	var err error
-	if ref := p.FileReader.Ref; ref != "" {
-		out, err = p.git(ctx, "ls-tree", "--name-only", "--end-of-options", ref, "--", dir)
+	if ref := fr.Ref; ref != "" {
+		out, err = fr.git(ctx, "ls-tree", "--name-only", "--end-of-options", ref, "--", dir)
 	} else {
-		out, err = p.git(ctx, "ls-files", "--", dir)
+		out, err = fr.git(ctx, "ls-files", "--", dir)
 	}
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
-func (p *FileFindProvider) git(ctx context.Context, args ...string) (string, error) {
-	if p.FileReader.Runner != nil {
-		out, err := p.FileReader.Runner.Output(ctx, p.FileReader.RepoDir, args...)
+func (fr *FileReader) git(ctx context.Context, args ...string) (string, error) {
+	if fr.Runner != nil {
+		out, err := fr.Runner.Output(ctx, fr.RepoDir, args...)
 		return string(out), err
 	}
 	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = p.FileReader.RepoDir
+	cmd.Dir = fr.RepoDir
 	out, err := cmd.Output()
 	return string(out), err
 }

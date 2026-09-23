@@ -16,7 +16,8 @@ import (
 const reviewGuidance = `## Contradictions and generated code
 - When two places disagree (code and test, an invariant and a comment, a schema and its generator, a caller and a library), establish which side is wrong before commenting: read the source that decides it, including installed dependency code under node_modules/, vendor/ or site-packages/. Anchor the comment on the side that is wrong. Say that one of them is wrong only when the evidence cannot decide.
 - When a generated file is wrong, find the generator or source file that produces it and name that file in the comment; the fix belongs there, not in the generated output. When that source is among the review files, comment on the source.
-- An empty tool result is not a fact about the code. Read the tool's explanation (no file matched the pattern, or nothing matched in the files), then try another path, name or search; installed dependency sources are available. Never write a comment whose point is that something could not be checked or is unavailable to you.`
+- An empty tool result is not a fact about the code. Read the tool's explanation (no file matched the pattern, or nothing matched in the files), then try another path, name or search; installed dependency sources are available. Never write a comment whose point is that something could not be checked or is unavailable to you.
+- Do not cite checklist items or rule numbers in comments; each comment must stand on its own for a reader who never saw the checklist.`
 
 // filterToolLimitGround adds a removal ground to the review filter: a claim
 // about the reviewer's own tools is not a defect in the diff.

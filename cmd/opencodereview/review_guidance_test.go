@@ -49,6 +49,9 @@ func TestReviewGuidanceRejectsToolLimitClaims(t *testing.T) {
 		t.Fatal(err)
 	}
 	appendReviewGuidance(tpl)
+	if !strings.Contains(tpl.MainTask.Messages[0].Content, "rule numbers") {
+		t.Error("the main prompt must keep checklist numbering out of comments")
+	}
 	if !strings.Contains(tpl.MainTask.Messages[0].Content, "could not be checked") {
 		t.Error("the main prompt must forbid reporting tool limits as findings")
 	}
