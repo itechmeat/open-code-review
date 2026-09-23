@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 alibaba/open-code-review Contributors
+
+package llm
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"testing"
+	"time"
+)
+
+// TestMain lets the test binary stand in for the claude CLI: tests point
+// OCR_CLAUDE_CODE_BIN at os.Args[0] and select a canned behavior through
+// OCR_FAKE_CLAUDE, so the client's real process handling runs on every
+// platform without a shell script.
+func TestMain(m *testing.M) {
+	if mode := os.Getenv("OCR_FAKE_CLAUDE"); mode != "" {
+		os.Exit(runFakeClaude(mode))
+	}
+	os.Exit(m.Run())
+}
+
+type fakeClaudeDump struct {
+	Args  []string `json:"args"`
+	Stdin string   `json:"stdin"`
+	Env   []string `json:"env"`
+	Dir   string   `json:"dir"`
+}
+
+func runFakeClaude(mode string) int {
+	stdin, _ := io.ReadAll(os.Stdin)
+	if path := os.Getenv("OCR_FAKE_CLAUDE_DUMP"); path != "" {
+		dir, _ := os.Getwd()
+		data, _ := json.Marshal(fakeClaudeDump{Args: os.Args[1:], Stdin: string(stdin), Env: os.Environ(), Dir: dir})
+		_ = os.WriteFile(path, data, 0o600)
+	}
+	usage := `"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":3,"cache_read_input_tokens":2}`
+	switch mode {
+	case "tools":
+		fmt.Printf(`{"type":"result","is_error":false,"result":"","structured_output":{"content":"checked","tool_calls":[{"name":"code_comment","arguments":{"content":"x"}},{"name":"task_done","arguments":{"state":"DONE"}}]},%s}`, usage)
+	case "null-args":
+		fmt.Printf(`{"type":"result","is_error":false,"structured_output":{"tool_calls":[{"name":"task_done","arguments":null},{"name":"task_done"}]},%s}`, usage)
+	case "text":
+		fmt.Printf(`{"type":"result","is_error":false,"result":"hello","structured_output":null,%s}`, usage)
+	case "missing-structured":
+		fmt.Printf(`{"type":"result","subtype":"error_max_structured_output_retries","is_error":false,"result":"I refuse to use the schema",%s}`, usage)
+	case "error-login":
+		fmt.Print(`{"type":"result","is_error":true,"result":"Not logged in · Please run /login"}`)
+		return 1
+	case "error-limit":
+		fmt.Print(`{"type":"result","is_error":true,"result":"Claude AI usage limit reached|1760000000"}`)
+		return 1
+	case "stderr-only":
+		fmt.Fprint(os.Stderr, "boom: unexpected failure")
+		return 2
+	case "garbage":
+		fmt.Print("not json")
+	case "sleep":
+		time.Sleep(30 * time.Second)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown fake mode %q", mode)
+		return 3
+	}
+	return 0
+}
