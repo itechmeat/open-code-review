@@ -50,24 +50,7 @@ func (p *CodeSearchProvider) Execute(ctx context.Context, args map[string]any) (
 		return "Error: search_text is blank", nil
 	}
 
-	deps, repo := splitDependencyPatterns(patterns)
-	if len(deps) > 0 {
-		depResult, err := p.searchDependencies(ctx, searchText, caseSensitive, usePerlRegexp, deps)
-		if err != nil || len(repo) == 0 {
-			return depResult, err
-		}
-		repoResult, err := p.gitGrep(ctx, searchText, caseSensitive, usePerlRegexp, repo)
-		if err != nil {
-			return "", err
-		}
-		return combineSearchResults(repoResult, depResult), nil
-	}
-
-	result, err := p.gitGrep(ctx, searchText, caseSensitive, usePerlRegexp, patterns)
-	if err != nil {
-		return "", err
-	}
-	return result, nil
+	return p.searchWithDiagnostics(ctx, searchText, caseSensitive, usePerlRegexp, patterns)
 }
 
 func (p *CodeSearchProvider) buildGrepArgs(searchText string, caseSensitive bool, usePerlRegexp bool, noIndex bool, pathspec []string) []string {

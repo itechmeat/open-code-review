@@ -171,3 +171,20 @@ func TestCodeSearchDoesNotLeakThroughDependencySymlinks(t *testing.T) {
 		t.Fatalf("secret content leaked through a symlink:\n%s", got)
 	}
 }
+
+func TestFileFindReachesDependencySources(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	p := NewFileFind(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	for _, q := range []string{"MenuTrigger.js", "MenuTrigger"} {
+		got, err := p.Execute(context.Background(), map[string]any{"query_name": q})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got, "node_modules/@base-ui/react/menu/trigger/MenuTrigger.js") {
+			t.Errorf("file_find %q missed the dependency file:\n%s", q, got)
+		}
+	}
+	if got, _ := p.Execute(context.Background(), map[string]any{"query_name": ".env"}); strings.Contains(got, ".env") && !strings.Contains(got, "not found") {
+		t.Errorf("file_find must not surface ignored non-dependency files:\n%s", got)
+	}
+}
