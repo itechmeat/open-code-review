@@ -98,3 +98,15 @@ func reviewSelectionLine(reason agent.ExcludeReason) string {
 		return fmt.Sprintf("Review:  excluded (%s)", reason)
 	}
 }
+
+// previewIncludeHint tells the reader of a preview that files skipped by the
+// default path or extension gates can be brought back; the reason code alone
+// does not say so.
+func previewIncludeHint(entries []agent.DiffPreviewEntry) string {
+	for _, e := range entries {
+		if !e.WillReview && (e.ExcludeReason == agent.ExcludeDefaultPath || e.ExcludeReason == agent.ExcludeExtension) {
+			return "  default_path / unsupported_ext files can be reviewed: list them under \"include\" in a rule file (--rule, .opencodereview/rule.json); check with `ocr rules check <path>`"
+		}
+	}
+	return ""
+}

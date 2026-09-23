@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.
 
 package main
 
@@ -790,6 +791,9 @@ func outputPreviewText(p *agent.DiffPreview, out io.Writer) {
 			slices.Sort(providerDirs)
 			fmt.Fprintf(out, "  %s\n", colorf("\033[2m", "%d file(s) in provider directories (%s) — not reviewable",
 				providerCount, sanitizeTerminal(strings.Join(slices.Compact(providerDirs), ", "))))
+		}
+		if hint := previewIncludeHint(p.Entries); hint != "" {
+			fmt.Fprintf(out, "%s\n", colorf("\033[2m", "%s", hint))
 		}
 	}
 
