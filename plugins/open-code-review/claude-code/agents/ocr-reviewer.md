@@ -11,6 +11,11 @@ return a short, reliable list.
 
 ## 1. Run the review
 
+First check that the installed `ocr` has the provider: `ocr llm providers | grep claude-code`.
+If `ocr` is missing or the line is absent, stop and tell the caller to install
+ocr from the fork (github.com/itechmeat/open-code-review, NOTICE.fork.md,
+"Install"); the npm package does not include this provider.
+
 Build the command from the scope you were given:
 
 ```bash
@@ -32,8 +37,8 @@ Recover from these errors once, then report if they persist:
 |------------|--------|
 | `provider "claude-code" is not configured` | run `ocr config set providers.claude-code.model sonnet`, retry |
 | `not logged in` | stop; tell the caller to run `claude` and `/login` |
+| `too old for this provider` | stop; tell the caller to update Claude Code |
 | `usage limit` | stop; report the limit and the session ID if any |
-| `ocr: command not found` | stop; the fork's `scripts/fork-sync.sh` installs it |
 
 ## 2. Verify
 

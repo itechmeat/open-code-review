@@ -153,7 +153,7 @@ func TestMain(m *testing.M) {
 
 **Files:** none committed except notes appended to the spec's Phase 2 section if numbers change the decision.
 
-- [ ] `make build`; `ocr config set providers.claude-code.model sonnet` (adds the entry; default provider stays `z-ai-coding`).
+- [ ] `make build`; `ocr config set providers.claude-code.model sonnet` (adds the entry; the default provider is left unchanged).
 - [ ] `./dist/ocr llm test --provider claude-code` (or the command's actual flag) → reply received.
 - [ ] `./dist/ocr review -c HEAD~1 --provider claude-code --model haiku --audience agent` on this repo → completes; `ocr session show <id>` shows manifest `complete`; viewer lists conversations.
 - [ ] Record wall time, number of `claude` calls, tokens. Decide Phase 2 (`--resume`) per spec; implement only if replay cost dominates.

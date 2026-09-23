@@ -47,7 +47,7 @@
 > ocr review --provider claude-code --audience agent
 > ```
 >
-> 変更点・設計の理由・上流との同期方法は [NOTICE.fork.md](../../NOTICE.fork.md) を参照してください。以下の内容はすべて上流のドキュメントです。
+> ソースからのインストール方法（npm パッケージにはこのプロバイダーは含まれません）、変更点、上流との同期方法は [NOTICE.fork.md](../../NOTICE.fork.md) を参照してください。以下の内容はすべて上流のドキュメントです。
 
 ## Open Code Reviewとは？
 

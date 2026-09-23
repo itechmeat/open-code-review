@@ -47,7 +47,7 @@
 > ocr review --provider claude-code --audience agent
 > ```
 >
-> 变更内容、设计理由与上游同步方式见 [NOTICE.fork.md](../../NOTICE.fork.md)。以下其余内容均为上游文档。
+> 从源码安装（npm 包不包含此提供方）、变更内容与上游同步方式见 [NOTICE.fork.md](../../NOTICE.fork.md)。以下其余内容均为上游文档。
 
 ## Open Code Review 是什么？
 

@@ -204,7 +204,7 @@ changes.
   `main` mirrors upstream. Nothing is pushed without explicit approval.
 - `scripts/fork-sync.sh`: `git fetch upstream` → fast-forward `main` →
   rebase `claude-code-provider` → `make check test` → `go build` →
-  install `ocr` to `~/.local/bin` (ahead of the npm copy in `PATH`) → refresh
+  install `ocr` via `scripts/fork-install.sh` (default `~/.local/bin`) → refresh
   the agent symlink. Stops on the first failure.
 - Commits follow AGENTS.md: English, short, no AI attribution trailers. The
   fork README discloses that AI tools were used to write the change (AGENTS.md

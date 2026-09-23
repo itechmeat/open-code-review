@@ -47,7 +47,7 @@
 > ocr review --provider claude-code --audience agent
 > ```
 >
-> Изменения, мотивация и синхронизация с upstream: [NOTICE.fork.md](../../NOTICE.fork.md). Всё остальное ниже — документация upstream.
+> Установка из исходников (npm-пакет не содержит этот провайдер), изменения и синхронизация с upstream: [NOTICE.fork.md](../../NOTICE.fork.md). Всё остальное ниже — документация upstream.
 
 ## Что такое Open Code Review?
 

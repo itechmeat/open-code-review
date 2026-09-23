@@ -47,7 +47,7 @@
 > ocr review --provider claude-code --audience agent
 > ```
 >
-> Changes, rationale and upstream sync: [NOTICE.fork.md](NOTICE.fork.md). Everything else below is upstream documentation.
+> Install from source (the npm package does not include the provider), changes and upstream sync: [NOTICE.fork.md](NOTICE.fork.md). Everything else below is upstream documentation.
 
 ## What is Open Code Review?
 

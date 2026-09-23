@@ -47,7 +47,7 @@
 > ocr review --provider claude-code --audience agent
 > ```
 >
-> 변경 사항, 설계 이유, 업스트림 동기화 방법은 [NOTICE.fork.md](../../NOTICE.fork.md)를 참고하세요. 아래의 나머지 내용은 모두 업스트림 문서입니다.
+> 소스에서 설치하는 방법(npm 패키지에는 이 제공자가 포함되어 있지 않습니다), 변경 사항, 업스트림 동기화 방법은 [NOTICE.fork.md](../../NOTICE.fork.md)를 참고하세요. 아래의 나머지 내용은 모두 업스트림 문서입니다.
 
 ## Open Code Review란?
 

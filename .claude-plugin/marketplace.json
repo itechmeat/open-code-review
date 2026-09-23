@@ -1,7 +1,7 @@
 {
-  "name": "open-code-review",
+  "name": "open-code-review-itechmeat",
   "owner": {
-    "name": "alibaba"
+    "name": "Sergey Eroshenkov"
   },
   "description": "AI-powered code review agent that reads Git diffs, analyzes changed files with LLM tool-use capabilities, and generates structured line-level review comments with cross-referential context awareness.",
   "plugins": [
