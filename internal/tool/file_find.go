@@ -92,10 +92,7 @@ func (p *FileFindProvider) Execute(ctx context.Context, args map[string]any) (st
 	}
 
 	if len(matched) == 0 {
-		if deps := p.findDependencyFiles(ctx, query, caseSensitive); len(deps) > 0 {
-			return "// Found in installed dependency sources (working tree):\n" + strings.Join(deps, "\n"), nil
-		}
-		return "// The file was not found", nil
+		return p.dependencyFindResult(ctx, query, caseSensitive), nil
 	}
 	return strings.Join(matched, "\n"), nil
 }

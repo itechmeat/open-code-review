@@ -51,6 +51,7 @@ it can be offered upstream:
 | review dedup also merges findings that share one root cause and names the file to fix | one generator bug reported from several generated files comes back once |
 | an empty `code_search` says why: file_patterns that match no file are named, a regex-looking literal (`a\|b`) is retried as a regex | "No matches found" is no longer read as "does not exist" |
 | the review prompt forbids findings about the reviewer's own tool limits, and the filter removes them | no "node_modules isn't available here" comments |
+| `file_find` ranks dependency copies of the reviewed tree first and labels copies under untracked directories; its not-found answer lists the directories it searched | the model reads the dependency version the reviewed code actually uses |
 | the claude-code provider retries an unexplained API error once; the Summary line counts failed model calls as `llm_errors=N` | a refused filter call no longer vanishes silently |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 

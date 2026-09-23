@@ -6,7 +6,7 @@ package rules
 // provenanceLabels names where a checklist came from. Without it the model
 // quotes OCR's generic defaults as "the project's policy".
 var provenanceLabels = map[string]string{
-	"system":  "Checklist source: OpenCodeReview's built-in defaults for this file type, not a policy of this repository. When a finding relies on it, attribute it to OCR's default checklist, never to the project or the repository.",
+	"system":  "Checklist source: OpenCodeReview's built-in defaults for this file type, not a policy of this repository. Do not cite this checklist, its source or any project policy in comments; explain each issue on its own merits.",
 	"custom":  "Checklist source: the rule file passed with --rule for this review.",
 	"project": "Checklist source: this repository's .opencodereview/rule.json.",
 	"global":  "Checklist source: the user's global ~/.opencodereview/rule.json.",

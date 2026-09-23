@@ -204,3 +204,41 @@ func TestFileFindReachesNestedDependencyDirs(t *testing.T) {
 		t.Fatalf("nested dependency dir missed: %q, %v", got, err)
 	}
 }
+
+// An untracked side project's node_modules may hold a different version of a
+// package than the one the reviewed tree resolves.
+func TestFileFindRanksReviewedTreeDependenciesFirst(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	stray := filepath.Join(dir, "template-shell", "node_modules", "@base-ui", "react", "menu", "trigger", "MenuTrigger.js")
+	if err := os.MkdirAll(filepath.Dir(stray), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stray, []byte("old\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := NewFileFind(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got, err := p.Execute(context.Background(), map[string]any{"query_name": "MenuTrigger.js"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := strings.Index(got, "\nnode_modules/@base-ui/react/menu/trigger/MenuTrigger.js")
+	other := strings.Index(got, "template-shell/node_modules/@base-ui/react/menu/trigger/MenuTrigger.js")
+	if main < 0 || other < 0 || main > other {
+		t.Fatalf("the reviewed tree's dependency must come first:\n%s", got)
+	}
+	if !strings.Contains(got[other:], "not part of the reviewed tree") {
+		t.Errorf("the stray copy must be labelled:\n%s", got)
+	}
+}
+
+func TestFileFindNotFoundSaysWhereItLooked(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	p := NewFileFind(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got, err := p.Execute(context.Background(), map[string]any{"query_name": "@base-ui/react/esm/drawer/portal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "not found") || !strings.Contains(got, "reviewed tree") || !strings.Contains(got, "node_modules/") {
+		t.Errorf("not-found must name what was searched:\n%s", got)
+	}
+}

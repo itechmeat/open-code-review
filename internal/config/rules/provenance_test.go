@@ -26,6 +26,10 @@ func TestWithProvenanceLabelsBuiltinRules(t *testing.T) {
 	if !strings.HasPrefix(got, "Checklist source: OpenCodeReview's built-in defaults") || !strings.Contains(got, base.Resolve("src/app.ts")) {
 		t.Fatalf("built-in rule not labelled:\n%s", got)
 	}
+	// The label once leaked into comments as "(From OCR's default checklist.)".
+	if !strings.Contains(got, "Do not cite this checklist") {
+		t.Errorf("built-in label must keep the checklist out of comment text:\n%s", got)
+	}
 	if dr, ok := r.(DetailResolver); !ok || dr.ResolveDetail("src/app.ts").Source != "system" {
 		t.Error("ResolveDetail must still reach the wrapped resolver")
 	}
