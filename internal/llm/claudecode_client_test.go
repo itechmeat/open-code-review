@@ -356,3 +356,27 @@ func TestClaudeCodeBinarySkipsTerminalShims(t *testing.T) {
 		t.Errorf("with only a shim on PATH it is still used: %q, %v", got, err)
 	}
 }
+
+func TestClaudeCodeClientRetriesUnclassifiedAPIErrorOnce(t *testing.T) {
+	dump := useFakeClaude(t, "flaky")
+	resp, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+	if err != nil {
+		t.Fatalf("a transient API error must be retried: %v", err)
+	}
+	if len(resp.Choices[0].Message.ToolCalls) == 0 {
+		t.Error("retry result not returned")
+	}
+	if calls := readAllFakeDumps(t, dump); len(calls) != 2 {
+		t.Errorf("want 2 calls, got %d", len(calls))
+	}
+}
+
+func TestClaudeCodeClientDoesNotRetryAccountErrors(t *testing.T) {
+	dump := useFakeClaude(t, "error-limit")
+	if _, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest()); err == nil {
+		t.Fatal("expected the usage-limit error")
+	}
+	if calls := readAllFakeDumps(t, dump); len(calls) != 1 {
+		t.Errorf("a usage limit must not be retried, got %d calls", len(calls))
+	}
+}

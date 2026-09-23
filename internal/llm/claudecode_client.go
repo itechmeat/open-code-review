@@ -75,8 +75,20 @@ func NewClaudeCodeClient(cfg ClientConfig) *ClaudeCodeClient {
 	return &ClaudeCodeClient{model: cfg.Model, effort: os.Getenv(envClaudeCodeEffort), timeout: timeout}
 }
 
-// CompletionsWithCtx implements LLMClient.
+// CompletionsWithCtx implements LLMClient. An error the CLI reports without a
+// known cause (an overloaded API, a one-off safeguard refusal) is retried once;
+// a lost stage otherwise silently skips work such as the review filter.
 func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	resp, err := c.complete(ctx, req)
+	if err != nil && ctx.Err() == nil && !errors.Is(err, context.DeadlineExceeded) &&
+		!errors.Is(err, ErrClaudeCodeNotLoggedIn) && !errors.Is(err, ErrClaudeCodeUsageLimit) &&
+		!errors.Is(err, ErrClaudeCodeOutdated) {
+		resp, err = c.complete(ctx, req)
+	}
+	return resp, err
+}
+
+func (c *ClaudeCodeClient) complete(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	inv, err := buildClaudeCodeInvocation(req, c.model, c.effort)
 	if err != nil {
 		return nil, err

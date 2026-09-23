@@ -62,6 +62,15 @@ func runFakeClaude(mode string) int {
 			}
 		}
 	}
+	if mode == "flaky" {
+		marker := os.Getenv("OCR_FAKE_CLAUDE_DUMP") + ".failed-once"
+		if _, err := os.Stat(marker); err != nil {
+			_ = os.WriteFile(marker, nil, 0o600)
+			fmt.Print(`{"type":"result","is_error":true,"result":"API Error: safeguards flagged this message"}`)
+			return 1
+		}
+		mode = "tools"
+	}
 	if mode == "resume-fails" {
 		for _, a := range os.Args {
 			if a == "--resume" {
