@@ -111,3 +111,63 @@ func TestIsDependencyPath(t *testing.T) {
 		}
 	}
 }
+
+func TestDependencyPathRejectsEscapes(t *testing.T) {
+	for _, path := range []string{"vendor/../.env", "node_modules/x/../../config/secret.yaml", "node_modules/../src/app.ts"} {
+		if isDependencyPath(path) {
+			t.Errorf("isDependencyPath(%q) = true; a path that climbs out must not count", path)
+		}
+	}
+}
+
+func TestFileReadRefusesSymlinkOutOfDependencies(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	link := filepath.Join(dir, "node_modules", "evil.js")
+	if err := os.Symlink(filepath.Join(dir, ".env"), link); err != nil {
+		t.Skip("symlinks unsupported:", err)
+	}
+	fr := &FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)}
+	if got, err := fr.Read(context.Background(), "node_modules/evil.js"); err == nil {
+		t.Fatalf("a dependency symlink to a secret was followed: %q", got)
+	}
+	if _, _, err := fr.ReadLines(context.Background(), "node_modules/evil.js", 1, 5); err == nil {
+		t.Fatal("ReadLines followed a dependency symlink to a secret")
+	}
+}
+
+func TestFileReadDoesNotFallBackAfterCancel(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	fr := &FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got, err := fr.Read(ctx, "node_modules/@base-ui/react/menu/trigger/MenuTrigger.js"); err == nil {
+		t.Fatalf("a cancelled read must fail, got %q", got)
+	}
+}
+
+func TestCodeSearchMixedPatternsSurviveMissingDependencies(t *testing.T) {
+	dir := setupTestRepo(t) // no node_modules installed
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got, err := p.Execute(context.Background(), map[string]any{
+		"search_text":   "Util",
+		"file_patterns": []any{"pkg/", "node_modules/lib/"},
+	})
+	if err != nil || !strings.Contains(got, "pkg/util.go") {
+		t.Fatalf("repo matches must survive a failed dependency search: %q, %v", got, err)
+	}
+}
+
+func TestCodeSearchDoesNotLeakThroughDependencySymlinks(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	if err := os.Symlink(filepath.Join(dir, ".env"), filepath.Join(dir, "node_modules", "evil.js")); err != nil {
+		t.Skip("symlinks unsupported:", err)
+	}
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got, err := p.Execute(context.Background(), map[string]any{"search_text": "API_TOKEN", "file_patterns": []any{"node_modules/"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "secret") {
+		t.Fatalf("secret content leaked through a symlink:\n%s", got)
+	}
+}

@@ -75,9 +75,9 @@ func (fr *FileReader) Read(ctx context.Context, path string) (string, error) {
 		return fr.readFromDisk(path)
 	case ModeRange, ModeCommit:
 		content, err := fr.readFromGitShow(ctx, path)
-		if err != nil && isDependencyPath(path) {
+		if err != nil && ctx.Err() == nil && isDependencyPath(path) {
 			// Installed dependencies are not in the reviewed tree.
-			return fr.readFromDisk(path)
+			return fr.readDependencyFromDisk(path)
 		}
 		return content, err
 	default:
@@ -153,7 +153,10 @@ func (fr *FileReader) ReadLines(ctx context.Context, path string, startLine, max
 		innerCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		lines, total, err := fr.readLinesFromGitShow(innerCtx, path, startLine, maxLines)
-		if err != nil && isDependencyPath(path) {
+		if err != nil && ctx.Err() == nil && isDependencyPath(path) {
+			if _, derr := fr.dependencyDiskPath(path); derr != nil {
+				return nil, 0, derr
+			}
 			return fr.readLinesFromDisk(path, startLine, maxLines)
 		}
 		return lines, total, err

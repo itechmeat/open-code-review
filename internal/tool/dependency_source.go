@@ -7,11 +7,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	allowedext "github.com/alibaba/open-code-review/internal/config/allowlist"
+	"github.com/alibaba/open-code-review/internal/pathutil"
 )
 
 // dependencyDirs hold installed third-party sources. They are git-ignored, so
@@ -28,12 +30,49 @@ func isDependencyPath(path string) bool {
 		return false
 	}
 	segments := strings.Split(path, "/")
+	for _, s := range segments {
+		// A path that climbs out could name any ignored file.
+		if s == ".." {
+			return false
+		}
+	}
 	for i, s := range segments {
 		if dependencyDirs[s] && i < len(segments)-1 {
 			return true
 		}
 	}
 	return false
+}
+
+// dependencyDiskPath resolves path in the working tree and confirms that,
+// after symlinks, it still lies inside a dependency directory; pnpm-style
+// links inside node_modules are fine, a link pointing at .env is not.
+func (fr *FileReader) dependencyDiskPath(path string) (string, error) {
+	full, err := fr.resolveWorkspacePath(path)
+	if err != nil {
+		return "", err
+	}
+	root, err := pathutil.CanonicalPath(fr.RepoDir)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(root, full)
+	if err != nil || !isDependencyPath(rel) {
+		return "", fmt.Errorf("file path %q resolves outside dependency sources", path)
+	}
+	return full, nil
+}
+
+func (fr *FileReader) readDependencyFromDisk(path string) (string, error) {
+	full, err := fr.dependencyDiskPath(path)
+	if err != nil {
+		return "", err
+	}
+	content, err := os.ReadFile(full)
+	if err != nil {
+		return "", fmt.Errorf("read file %q: %w", path, err)
+	}
+	return string(content), nil
 }
 
 func splitDependencyPatterns(patterns []string) (deps, repo []string) {
