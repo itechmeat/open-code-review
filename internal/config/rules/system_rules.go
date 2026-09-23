@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 // Package rules loads system review rules and matches file paths against glob patterns.
 package rules
@@ -221,6 +222,9 @@ type ProjectRule struct {
 type FileFilter struct {
 	Include []string
 	Exclude []string
+	// Scope, when set (review --path), restricts review to paths under these
+	// directories, files or globs; see IsOutOfScope.
+	Scope []string
 }
 
 // HasInclude reports whether any include patterns are configured.

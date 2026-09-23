@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package main
 
@@ -23,6 +24,7 @@ type delegateOptions struct {
 	to             string
 	commit         string
 	excludes       string
+	paths          string
 	rulePath       string
 	background     string
 	backgroundFile string
@@ -100,6 +102,7 @@ func loadDelegateContext(opts delegateOptions) (*delegateContext, error) {
 		return nil, err
 	}
 	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIScope(cc, splitPaths(opts.paths))
 
 	// Security: reject ref-option injection.
 	reviewOpts := reviewOptions{from: opts.from, to: opts.to, commit: opts.commit}

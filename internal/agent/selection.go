@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package agent
 
@@ -79,6 +80,12 @@ func (a *Agent) whyExcluded(d model.Diff) ExcludeReason {
 	// and no user exclude can claim it under a different reason.
 	if allowedext.IsSecretPath(d.OldPath) || allowedext.IsSecretPath(d.NewPath) {
 		return ExcludeSecret
+	}
+
+	// Ahead of include: an include pattern admits files the defaults skip, but
+	// never widens the area the caller restricted the review to.
+	if f != nil && f.IsOutOfScope(path) {
+		return model.ExcludeOutOfScope
 	}
 
 	if f != nil && f.IsUserExcluded(path) {

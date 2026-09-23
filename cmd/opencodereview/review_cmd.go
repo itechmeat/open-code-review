@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package main
 
@@ -35,6 +36,7 @@ type reviewOptions struct {
 	commit                string
 	resume                string
 	excludes              string
+	paths                 string
 	outputFormat          string
 	audience              string
 	outputPath            string
@@ -139,6 +141,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 		return err
 	}
 	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIScope(cc, splitPaths(opts.paths))
 
 	// Security (#112): reject ref-option injection before any git invocation.
 	if err := validateReviewRefs(cc.RepoDir, opts); err != nil {

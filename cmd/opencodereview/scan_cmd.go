@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package main
 
@@ -97,7 +98,7 @@ func splitPaths(raw string) []string {
 	if raw == "" {
 		return nil
 	}
-	parts := strings.Split(raw, ",")
+	parts := splitOutsideBraces(raw)
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
