@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/alibaba/open-code-review/internal/agent"
+	"github.com/alibaba/open-code-review/internal/config/rules"
 	"github.com/alibaba/open-code-review/internal/diff"
 	"github.com/alibaba/open-code-review/internal/llm"
 	"github.com/alibaba/open-code-review/internal/mcp"
@@ -224,7 +225,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 		Commit:                opts.commit,
 		ReviewMode:            reviewModeFromOptions(opts),
 		Template:              *cc.Template,
-		SystemRule:            cc.Resolver,
+		SystemRule:            rules.WithProvenance(cc.Resolver),
 		FileFilter:            cc.FileFilter,
 		LLMClient:             rt.Client,
 		Tools:                 tools,
