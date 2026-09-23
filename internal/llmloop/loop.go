@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package llmloop
 
@@ -796,7 +797,7 @@ func (r *Runner) executeToolCall(ctx context.Context, taskKey string, call llm.T
 		telemetry.RecordToolCall(ctx, t.Name(), dur, true)
 		telemetry.PrintToolCallFinished(t.Name(), dur)
 		if rec != nil {
-			rec.AddToolResult(t.Name(), call.Function.Arguments, tool.CommentSucceed)
+			rec.AddTimedToolResult(t.Name(), call.Function.Arguments, tool.CommentSucceed, dur)
 		}
 		r.resetToolFailureStreak(taskKey, t.Name())
 		return tool.Of(tool.CommentSucceed)
@@ -820,7 +821,7 @@ func (r *Runner) executeToolCall(ctx context.Context, taskKey string, call llm.T
 	}
 	telemetry.PrintToolCallFinished(toolName, dur)
 	if rec != nil {
-		rec.AddToolResult(toolName, call.Function.Arguments, result)
+		rec.AddTimedToolResult(toolName, call.Function.Arguments, result, dur)
 	}
 	r.resetToolFailureStreak(taskKey, toolName)
 	return tool.Of(result)
