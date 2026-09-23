@@ -867,7 +867,13 @@ func emitRunResult(
 		}); ok && h.Session() != nil {
 			llmErrors = h.Session().LLMFailures()
 		}
-		fmt.Fprintln(os.Stderr, machineRunSummary(manifest, len(comments), ag.ToolCalls(), llmIdentity, duration, ag.SessionID(), ag.TotalTokensUsed(), dedup, llmErrors))
+		var grouping string
+		for _, w := range ag.Warnings() {
+			if w.Type == "grouping_fallback" {
+				grouping = "fallback(per-file)"
+			}
+		}
+		fmt.Fprintln(os.Stderr, machineRunSummary(manifest, len(comments), ag.ToolCalls(), llmIdentity, duration, ag.SessionID(), ag.TotalTokensUsed(), dedup, llmErrors, grouping))
 	}
 	if !machineReadable {
 		telemetry.PrintTraceSummary(telemetry.TraceSummary{

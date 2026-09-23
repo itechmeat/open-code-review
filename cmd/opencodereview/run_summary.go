@@ -14,7 +14,7 @@ import (
 // caller reading only stderr can tell a thorough zero-finding review from a
 // skipped or shallow one without parsing the report.
 func machineRunSummary(m *session.RunManifest, comments int, toolCalls map[string]int64,
-	id *jsonLLMIdentity, elapsed time.Duration, sessionID string, tokens int64, dedup string, llmErrors int64) string {
+	id *jsonLLMIdentity, elapsed time.Duration, sessionID string, tokens int64, dedup string, llmErrors int64, grouping string) string {
 	status, files := "unknown", "0/0"
 	if m != nil {
 		status = string(m.TerminalState)
@@ -45,6 +45,9 @@ func machineRunSummary(m *session.RunManifest, comments int, toolCalls map[strin
 	// elapsed_ms (frozen when the review finished) does not.
 	if dedup != "" {
 		line += fmt.Sprintf(" dedup=%q", dedup)
+	}
+	if grouping != "" {
+		line += " grouping=" + grouping
 	}
 	return line
 }

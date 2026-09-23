@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.
 
 package agent
 
@@ -52,6 +53,9 @@ type groupingResponse struct {
 type groupDiffsResult struct {
 	groups []FileGroup
 	usage  *llm.UsageInfo
+	// fallback marks per-file groups forced by a failed grouping call, which
+	// roughly doubles a review's cost and must not go unreported.
+	fallback bool
 }
 
 // groupingSessionOpts carries optional session-recording context.
@@ -100,7 +104,7 @@ func groupDiffs(ctx context.Context, diffs []model.Diff, client llm.LLMClient, m
 	groups, usage, err := callGroupingLLM(ctx, diffs, client, modelName, tpl.GroupingTask, tpl.CompletionTokenLimit(), sessOpts)
 	if err != nil {
 		fmt.Fprintf(stdout.Writer(), "[ocr] LLM grouping failed (%v), falling back to per-file dispatch\n", err)
-		return groupDiffsResult{groups: toSingleFileGroups(diffs), usage: usage}
+		return groupDiffsResult{groups: toSingleFileGroups(diffs), usage: usage, fallback: true}
 	}
 
 	groups = enforceGroupTokenBudget(groups, tokenLimit)
@@ -237,13 +241,77 @@ func callGroupingLLM(ctx context.Context, diffs []model.Diff, client llm.LLMClie
 
 	groups, err = parseGroupingResponse(content, diffs)
 	if rec != nil {
+		// The reply is kept even when it does not parse, so a fallback to
+		// per-file groups can be diagnosed from the session.
+		rec.SetResponse(resp, duration)
+	}
+	if err == nil {
+		return groups, usage, nil
+	}
+	if ctx.Err() != nil {
+		return nil, usage, err
+	}
+	return retryGroupingLLM(ctx, diffs, client, modelName, messages, content, maxTokens, sessOpts, usage, err)
+}
+
+// groupingJSONReminder is the one follow-up a grouping reply gets when it
+// does not parse; losing the grouping doubles a review's cost, since every
+// file is then reviewed alone.
+const groupingJSONReminder = "Your reply could not be parsed. Reply again with only the JSON array described above: no prose, no code fence."
+
+func retryGroupingLLM(ctx context.Context, diffs []model.Diff, client llm.LLMClient, modelName string,
+	messages []llm.Message, badReply string, maxTokens int, sessOpts *groupingSessionOpts,
+	usage *llm.UsageInfo, firstErr error) ([]FileGroup, *llm.UsageInfo, error) {
+	retry := append(append([]llm.Message{}, messages...),
+		llm.NewTextMessage("assistant", badReply),
+		llm.NewTextMessage("user", groupingJSONReminder))
+
+	var rec *session.TaskRecord
+	if sessOpts != nil && sessOpts.session != nil {
+		rec = sessOpts.session.GetOrCreateFileSession("__grouping__").AppendTaskRecord(session.GroupingTask, retry)
+		// A new logical request: reusing the first call's identity would
+		// finalize it twice and void the run's retry report.
+		ctx = llm.WithRequestMeta(ctx, llm.RequestMeta{
+			Provider:  sessOpts.provider,
+			Model:     sessOpts.model,
+			FilePath:  "__grouping__",
+			TaskType:  string(session.GroupingTask),
+			RequestNo: rec.RequestNo,
+		})
+	}
+	start := time.Now()
+	resp, err := client.CompletionsWithCtx(ctx, llm.ChatRequest{Model: modelName, Messages: retry, MaxTokens: maxTokens})
+	if err != nil {
+		if rec != nil {
+			rec.SetError(err, time.Since(start))
+		}
+		return nil, usage, fmt.Errorf("grouping response parse failed (%v); retry failed: %w", firstErr, err)
+	}
+	usage = addUsage(usage, resp.Usage)
+	groups, err := parseGroupingResponse(resp.Content(), diffs)
+	if rec != nil {
+		rec.SetResponse(resp, time.Since(start))
 		if err != nil {
-			rec.SetError(fmt.Errorf("grouping response parse failed: %w", err), duration)
-		} else {
-			rec.SetResponse(resp, duration)
+			rec.SetError(fmt.Errorf("grouping response parse failed after retry: %w", err), time.Since(start))
 		}
 	}
 	return groups, usage, err
+}
+
+func addUsage(a, b *llm.UsageInfo) *llm.UsageInfo {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	return &llm.UsageInfo{
+		TotalTokens:      a.TotalTokens + b.TotalTokens,
+		PromptTokens:     a.PromptTokens + b.PromptTokens,
+		CompletionTokens: a.CompletionTokens + b.CompletionTokens,
+		CacheReadTokens:  a.CacheReadTokens + b.CacheReadTokens,
+		CacheWriteTokens: a.CacheWriteTokens + b.CacheWriteTokens,
+	}
 }
 
 // buildFileList renders the change set for the grouping prompt, one file per
@@ -275,7 +343,16 @@ func parseGroupingResponse(content string, diffs []model.Diff) ([]FileGroup, err
 	}
 
 	var resp []groupingResponse
-	if err := json.Unmarshal([]byte(content), &resp); err != nil {
+	err := json.Unmarshal([]byte(content), &resp)
+	if err != nil {
+		// Models sometimes wrap the array in a sentence; take the outermost
+		// brackets. A truncated reply still fails, as it should.
+		if i, j := strings.Index(content, "["), strings.LastIndex(content, "]"); i >= 0 && j > i {
+			resp = nil
+			err = json.Unmarshal([]byte(content[i:j+1]), &resp)
+		}
+	}
+	if err != nil {
 		// A parse failure (including a response truncated by the completion limit)
 		// returns an error; the caller falls back to per-file dispatch. Indices
 		// keep this output an order of magnitude smaller than paths did, so a

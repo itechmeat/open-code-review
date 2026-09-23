@@ -53,6 +53,7 @@ it can be offered upstream:
 | the review prompt forbids findings about the reviewer's own tool limits, and the filter removes them | no "node_modules isn't available here" comments |
 | `file_find` ranks dependency copies of the reviewed tree first and labels copies under untracked directories; its not-found answer lists the directories it searched | the model reads the dependency version the reviewed code actually uses |
 | the claude-code provider retries an unexplained API error once; the Summary line counts failed model calls as `llm_errors=N` | a refused filter call no longer vanishes silently |
+| grouping tolerates prose around its JSON, retries once with a JSON-only reminder, keeps every raw reply in the session, and a fallback to per-file groups shows as a `grouping_fallback` warning and `grouping=fallback(per-file)` in the Summary line | one chatty reply no longer doubles a review's cost unnoticed |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 
 The fork talks to Claude only through the official `claude` binary. It never
@@ -158,7 +159,8 @@ Modified (small, local edits, each marked under the license header with
 `Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.`):
 
 - `internal/llm/protocol.go`, `client.go`, `providers.go`, `providers_test.go`
-- `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
+- `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`,
+  `internal/agent/grouping.go`
 - `internal/tool/code_search.go`, `internal/tool/filereader.go`, `internal/tool/file_find.go`
 - `internal/config/rules/system_rules.go`, `system_rules.json` (test-file
   patterns ahead of the language rules)

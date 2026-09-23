@@ -664,6 +664,9 @@ func (a *Agent) dispatchSubtasks(ctx context.Context) ([]model.LlmComment, error
 		&groupingSessionOpts{session: a.session, provider: a.args.Provider, model: a.args.Model})
 	groups := groupResult.groups
 	a.fileGroups = groups
+	if groupResult.fallback {
+		a.recordWarning("grouping_fallback", "", "LLM grouping failed; every file is reviewed alone")
+	}
 	if groupResult.usage != nil {
 		a.runner.RecordUsage(groupResult.usage)
 	}
