@@ -127,9 +127,9 @@ The CLI's JSON result (`type:"result"`) is mapped to `llm.ChatResponse`:
   not being logged in are wrapped in distinct, testable error values so OCR's
   warnings and exit code tell the user what to do (`claude /login`, wait for
   the limit window).
-- The client calls the same `finalizeRequest` boundary the HTTP clients use,
-  so the retry report stays consistent (single attempt per request; OCR's
-  higher-level stage fallbacks still apply).
+- The client does not feed the HTTP retry report: that report is built from
+  HTTP attempts, and Claude Code performs its own API retries internally.
+  One process per request; OCR's higher-level stage fallbacks still apply.
 
 ## Provider preset and UX
 
