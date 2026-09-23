@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -98,9 +98,47 @@ func (p *FileFindProvider) findDependencyFiles(ctx context.Context, query string
 		query = strings.ToLower(query)
 	}
 	deadline := time.Now().Add(dependencyFileWalkBudget)
+	roots := p.dependencyRoots(ctx, root)
+	if roots == nil {
+		roots = []string{root}
+	}
 	var found []string
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if ctx.Err() != nil || time.Now().After(deadline) || len(found) >= fileFindMaxCount {
+	for _, walkRoot := range roots {
+		p.walkDependencyTree(ctx, root, walkRoot, query, caseSensitive, deadline, &found)
+	}
+	return found
+}
+
+// dependencyRoots lists the ignored dependency directories without entering
+// them, so the walk skips the rest of a large repository. It returns nil when
+// git cannot answer, and the caller walks the whole tree instead.
+func (p *FileFindProvider) dependencyRoots(ctx context.Context, root string) []string {
+	args := []string{"ls-files", "--others", "--ignored", "--exclude-standard", "--directory"}
+	var out []byte
+	var err error
+	if p.FileReader.Runner != nil {
+		out, err = p.FileReader.Runner.Output(ctx, p.FileReader.RepoDir, args...)
+	} else {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		cmd.Dir = p.FileReader.RepoDir
+		out, err = cmd.Output()
+	}
+	if err != nil {
+		return nil
+	}
+	roots := []string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		dir := strings.TrimSuffix(line, "/")
+		if dependencyDirs[filepath.Base(dir)] {
+			roots = append(roots, filepath.Join(root, filepath.FromSlash(dir)))
+		}
+	}
+	return roots
+}
+
+func (p *FileFindProvider) walkDependencyTree(ctx context.Context, root, walkRoot, query string, caseSensitive bool, deadline time.Time, found *[]string) {
+	_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
+		if ctx.Err() != nil || time.Now().After(deadline) || len(*found) >= fileFindMaxCount {
 			return fs.SkipAll
 		}
 		if err != nil {
@@ -125,9 +163,8 @@ func (p *FileFindProvider) findDependencyFiles(ctx context.Context, query string
 			cmp = strings.ToLower(rel)
 		}
 		if strings.Contains(cmp, query) {
-			found = append(found, rel)
+			*found = append(*found, rel)
 		}
 		return nil
 	})
-	return found
 }

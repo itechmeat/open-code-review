@@ -188,3 +188,19 @@ func TestFileFindReachesDependencySources(t *testing.T) {
 		t.Errorf("file_find must not surface ignored non-dependency files:\n%s", got)
 	}
 }
+
+func TestFileFindReachesNestedDependencyDirs(t *testing.T) {
+	dir := setupRepoWithDependencies(t)
+	nested := filepath.Join(dir, "packages", "ui", "node_modules", "lib", "Nested.js")
+	if err := os.MkdirAll(filepath.Dir(nested), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nested, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := NewFileFind(&FileReader{RepoDir: dir, Mode: ModeRange, Ref: getHeadCommit(t, dir)})
+	got, err := p.Execute(context.Background(), map[string]any{"query_name": "Nested.js"})
+	if err != nil || !strings.Contains(got, "packages/ui/node_modules/lib/Nested.js") {
+		t.Fatalf("nested dependency dir missed: %q, %v", got, err)
+	}
+}
