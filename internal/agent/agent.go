@@ -180,8 +180,11 @@ type RuntimeConfig struct {
 // compression / token aggregation now live in internal/llmloop.Runner; this
 // struct holds the diff-side state and orchestrates per-group subtasks.
 type Agent struct {
-	args            Args
-	diffs           []model.Diff // parsed diffs
+	args  Args
+	diffs []model.Diff // parsed diffs
+	// contextOnly holds changed files selection left out of the review; they
+	// are still named in <other_changed_files>, see rememberContextOnly.
+	contextOnly     []model.Diff
 	totalInsertions int64
 	totalDeletions  int64
 	currentDate     string
@@ -326,6 +329,7 @@ func (a *Agent) Run(ctx context.Context) ([]model.LlmComment, error) {
 	fmt.Fprintf(stdout.Writer(), "[ocr] %d file(s) changed, reviewing %d in %s\n", totalChanged, reviewCount, a.args.RepoDir)
 
 	a.logExclusions(decisions)
+	a.rememberContextOnly(decisions)
 	a.diffs = kept
 
 	// One run-level skip signal, keyed on the selected set rather than on what
@@ -1661,6 +1665,12 @@ func (a *Agent) buildChangeFilesExceptGroup(groupDiffs []model.Diff) string {
 			sb.WriteString("\n")
 		}
 		sb.WriteString(formatDiffEntry(d))
+	}
+	for _, d := range a.contextOnly {
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(formatDiffEntry(d) + " [not under review]")
 	}
 	return sb.String()
 }
