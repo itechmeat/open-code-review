@@ -3,15 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 alibaba/open-code-review Contributors
 
-# Sync this fork with alibaba/open-code-review and reinstall ocr.
+# Maintainer tool: sync this fork with alibaba/open-code-review, then reinstall
+# ocr via fork-install.sh. Users only need fork-install.sh.
 #
 # Usage: scripts/fork-sync.sh [--no-test] [--no-install]
 set -euo pipefail
 
 UPSTREAM_URL="https://github.com/alibaba/open-code-review.git"
 BRANCH="claude-code-provider"
-BIN_DIR="${HOME}/.local/bin"
-AGENTS_DIR="${HOME}/.claude/agents"
 
 run_tests=1
 install=1
@@ -57,29 +56,7 @@ if [ "$run_tests" = 1 ]; then
 fi
 
 if [ "$install" = 1 ]; then
-	mkdir -p "$BIN_DIR" "$AGENTS_DIR"
-	version=$(git describe --tags --always)
-	commit=$(git rev-parse --short HEAD)
-	built=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-	# Build beside the target and rename: go build refuses to overwrite a file
-	# that is not a Go binary, such as a shell wrapper left by an npm install.
-	go build -ldflags "-X main.Version=${version} -X main.GitCommit=${commit} -X main.BuildDate=${built}" \
-		-o "${BIN_DIR}/ocr.new" ./cmd/opencodereview
-	mv -f "${BIN_DIR}/ocr.new" "${BIN_DIR}/ocr"
-	agent="${repo}/plugins/open-code-review/claude-code/agents/ocr-reviewer.md"
-	if [ ! -f "$agent" ]; then
-		echo "missing $agent; the fork's files did not survive the rebase" >&2
-		exit 1
-	fi
-	ln -sf "$agent" "${AGENTS_DIR}/ocr-reviewer.md"
-
-	resolved=$(command -v ocr || true)
-	if [ "$resolved" != "${BIN_DIR}/ocr" ]; then
-		echo "warning: 'ocr' resolves to ${resolved:-nothing}, not ${BIN_DIR}/ocr;" >&2
-		echo "         remove the npm copy (npm uninstall -g @alibaba-group/open-code-review)" >&2
-		echo "         or put ${BIN_DIR} earlier in PATH" >&2
-	fi
-	"${BIN_DIR}/ocr" version
+	"${repo}/scripts/fork-install.sh" --link-agent
 fi
 
 echo "fork is in sync with upstream/main"
