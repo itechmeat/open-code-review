@@ -320,3 +320,11 @@ func TestClaudeCodeClientEffortFromEnv(t *testing.T) {
 		t.Errorf("--effort = %q, want high", got)
 	}
 }
+
+func TestClaudeCodeClientProcessErrorNamesBinary(t *testing.T) {
+	useFakeClaude(t, "stderr-only")
+	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+	if err == nil || !strings.Contains(err.Error(), os.Args[0]) {
+		t.Fatalf("err = %v, want the claude executable path in it", err)
+	}
+}

@@ -122,9 +122,13 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 		if detail == "" {
 			detail = stdout.String()
 		}
-		return nil, fmt.Errorf("%w (%v)", classifyClaudeCodeFailure(detail), runErr)
+		return nil, fmt.Errorf("%w (%s: %v)", classifyClaudeCodeFailure(detail), bin, runErr)
 	}
 }
+
+// ClaudeCodeBinary reports the claude executable the claude-code provider
+// runs, resolved the same way each request resolves it.
+func ClaudeCodeBinary() (string, error) { return claudeCodeBinary() }
 
 func claudeCodeBinary() (string, error) {
 	bin := strings.TrimSpace(os.Getenv(envClaudeCodeBin))
