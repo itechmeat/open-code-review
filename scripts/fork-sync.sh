@@ -40,9 +40,17 @@ fi
 git fetch upstream
 
 git checkout main
-git merge --ff-only upstream/main
+if ! git merge --ff-only upstream/main; then
+	echo "local main has diverged from upstream/main; main must stay a mirror of upstream" >&2
+	echo "inspect with: git log --oneline upstream/main..main" >&2
+	exit 1
+fi
 git checkout "$BRANCH"
-git rebase main
+if ! git rebase main; then
+	echo "rebase stopped on conflicts (expected only in the files listed in NOTICE.fork.md)" >&2
+	echo "resolve them, run 'git rebase --continue', then rerun this script; or 'git rebase --abort'" >&2
+	exit 1
+fi
 
 if [ "$run_tests" = 1 ]; then
 	make check test
@@ -55,7 +63,12 @@ if [ "$install" = 1 ]; then
 	built=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 	go build -ldflags "-X main.Version=${version} -X main.GitCommit=${commit} -X main.BuildDate=${built}" \
 		-o "${BIN_DIR}/ocr" ./cmd/opencodereview
-	ln -sf "${repo}/plugins/open-code-review/claude-code/agents/ocr-reviewer.md" "${AGENTS_DIR}/ocr-reviewer.md"
+	agent="${repo}/plugins/open-code-review/claude-code/agents/ocr-reviewer.md"
+	if [ ! -f "$agent" ]; then
+		echo "missing $agent; the fork's files did not survive the rebase" >&2
+		exit 1
+	fi
+	ln -sf "$agent" "${AGENTS_DIR}/ocr-reviewer.md"
 
 	resolved=$(command -v ocr || true)
 	if [ "$resolved" != "${BIN_DIR}/ocr" ]; then
