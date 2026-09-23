@@ -32,6 +32,9 @@ it can be offered upstream:
 | changed files left out of the review are still named in the prompt, marked `[not under review]` | the model knows a matching test or data file changed and can read its diff |
 | json/sarif runs print `[ocr] Summary: status=… files=… comments=… tool_calls=… provider=… model=… elapsed=… session=…` to stderr | a zero-finding run is distinguishable from a skipped or shallow one |
 | successful tool calls record their real `duration_ms` in the session | timing in `ocr session` data and the viewer is truthful |
+| review merges duplicate findings across file groups with scan's DEDUP_TASK (`--no-dedup` to skip); the session keeps the raw per-file comments | the same problem reported from two files, or twice, comes back once |
+| each review checklist in the prompt names its source (OCR built-in, `--rule`, project or global rule file) | findings no longer present OCR's generic defaults as the repository's policy |
+| `ocr review -p` hints how to `include` files excluded as `default_path` / `unsupported_ext` | Markdown, tests and similar files are one rule entry away |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 
 The fork talks to Claude only through the official `claude` binary. It never
@@ -121,8 +124,10 @@ Added:
 - `plugins/open-code-review/claude-code/commands/review-subscription.md`
 - `internal/agent/path_selection.go`, `internal/agent/context_only.go`,
   `internal/config/rules/scope.go`, `internal/model/scope.go`,
-  `internal/session/tool_duration.go`, and in `cmd/opencodereview/`:
-  `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, with their tests
+  `internal/session/tool_duration.go`, `internal/scan/dedup_comments.go`,
+  `internal/config/rules/provenance.go`, and in `cmd/opencodereview/`:
+  `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, `review_dedup.go`,
+  with their tests
 - `examples/rules/structured-data.rule.json`
 - `scripts/fork-install.sh`, `scripts/fork-sync.sh`, `NOTICE.fork.md`
 - `docs/superpowers/specs/2026-09-23-claude-code-provider-design.md`,
@@ -135,7 +140,7 @@ Modified (small, local edits, each marked under the license header with
 - `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
 - `internal/config/rules/system_rules.go`
 - `cmd/opencodereview/`: `llm_cmd.go`, `rules_cmd.go`, `review_cmd.go`,
-  `delegate_cmd.go`, `scan_cmd.go`, `shared.go`, `shared_flags.go`
+  `delegate_cmd.go`, `scan_cmd.go`, `shared.go`, `shared_flags.go`, `output.go`
 - `.claude-plugin/marketplace.json` (marketplace name and owner, so the fork's
   catalog neither collides with upstream's nor appears to be published by
   Alibaba; JSON has no comments, hence this note instead of a header)
