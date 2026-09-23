@@ -19,6 +19,14 @@ is logged in with, typically a Claude subscription, with no API key.
 OCR's own pipeline is untouched, so sessions, `ocr session …`, `ocr viewer`,
 `--resume` and every output format work as upstream documents them.
 
+Each OCR tool loop runs as one persisted Claude Code session: the first round
+starts it with `--session-id`, later rounds `--resume` it and send only the new
+messages instead of the whole history. If OCR rewrites earlier turns (memory
+compression, a new review round) a fresh session starts. On a 24-file review
+with haiku this cut uncached input from 1.37M to 0.27M tokens and wall time
+from 26 to 9 minutes, with the same findings. The sessions' transcripts are
+deleted from `~/.claude/projects` when the review ends.
+
 Smaller fixes and additions that help any provider, each a separate commit so
 it can be offered upstream:
 
@@ -118,7 +126,7 @@ whatever provider is configured.
 Added:
 
 - `internal/llm/claudecode_client.go`, `claudecode_request.go`,
-  `claudecode_response.go`, `claudecode_proc_unix.go`,
+  `claudecode_response.go`, `claudecode_session.go`, `claudecode_proc_unix.go`,
   `claudecode_proc_windows.go` and their tests
 - `plugins/open-code-review/claude-code/agents/ocr-reviewer.md`
 - `plugins/open-code-review/claude-code/commands/review-subscription.md`
@@ -127,6 +135,7 @@ Added:
   `internal/session/tool_duration.go`, `internal/scan/dedup_comments.go`,
   `internal/config/rules/provenance.go`, and in `cmd/opencodereview/`:
   `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, `review_dedup.go`,
+  `llm_close.go`,
   with their tests
 - `examples/rules/structured-data.rule.json`
 - `scripts/fork-install.sh`, `scripts/fork-sync.sh`, `NOTICE.fork.md`

@@ -227,14 +227,21 @@ changes.
 - Live smoke (manual, not in CI): `ocr review -c HEAD --provider claude-code
   --model haiku` on this repo, then `ocr session show` and `ocr viewer`.
 
-## Phase 2 (only if measurements justify it)
+## Phase 2 (implemented 2026-09-23)
 
-One process per request resends the whole history each tool round. If the
-live run shows latency or token usage dominated by replays, keep one Claude
-Code session per `ChatRequest.SessionID` via `--resume`, sending only the
-messages appended since the previous call, and fall back to a fresh session
-when the prefix changed (memory compression). Measured on 2026-09-23:
-per-call overhead ≈ 1.2 s, haiku call ≈ 3.6 s, sonnet ≈ 6.5 s.
+Requests with a `ChatRequest.SessionID` (OCR's main tool loop and its grace
+round) map to one persisted Claude Code session per SessionID: the first call
+pins it with `--session-id`, later calls `--resume` it with only the messages
+added since (assistant turns skipped, tool results named). A SHA-256 digest of
+system prompt plus the covered history detects rewrites (memory compression,
+new round) and starts a fresh session; a failed resume gets one full retry.
+All resumable sessions share one per-client working directory, since resume
+looks sessions up by cwd; `Close()` deletes it and the sessions' transcripts.
+One-shot requests (plan, grouping, filter, re-location) stay stateless.
+
+Measured on the same 24-file range with haiku: uncached input 1.37M → 0.27M
+tokens, cache writes 1.37M → 0.27M, wall time 26m09s → 9m21s, 3 findings
+each.
 
 ## Risks
 
