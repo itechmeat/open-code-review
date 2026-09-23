@@ -23,7 +23,8 @@ ocr review --provider claude-code --model sonnet --audience agent [scope] [--bac
 ```
 
 - Scope: nothing (workspace: staged, unstaged, untracked), `-c <sha>`, or
-  `--from <ref> --to <ref>`. Pass through exactly what you were asked for.
+  `--from <ref> --to <ref>`, optionally narrowed with `--path <dirs,files,globs>`.
+  Pass through exactly what you were asked for.
 - Use a 10-minute Bash timeout. For large change sets (more than ~15 files),
   add `--concurrency 4` and run the command in the background, redirecting
   output to a file, then read the file when it finishes.

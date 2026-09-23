@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
-// Modified by Sergey Eroshenkov, 2026: claude-code provider.
+// Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.
 
 package llmloop
 

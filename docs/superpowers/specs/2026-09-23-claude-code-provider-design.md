@@ -185,6 +185,8 @@ default stays upstream's.
 
 ## Upstream footprint (edits to existing files)
 
+As first designed; the current, complete list lives in `NOTICE.fork.md`.
+
 | File | Change |
 |------|--------|
 | `internal/llm/protocol.go` | constant, `NormalizeProtocol` case, `ValidateProtocol` whitelist + message |

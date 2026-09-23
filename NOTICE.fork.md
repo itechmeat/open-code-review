@@ -19,6 +19,21 @@ is logged in with, typically a Claude subscription, with no API key.
 OCR's own pipeline is untouched, so sessions, `ocr session …`, `ocr viewer`,
 `--resume` and every output format work as upstream documents them.
 
+Smaller fixes and additions that help any provider, each a separate commit so
+it can be offered upstream:
+
+| Change | What it gives |
+|--------|---------------|
+| `ocr llm test --provider <name> [--model <m>]` | test a configured provider that is not the default; for `claude-code` it also prints which `claude` executable answered |
+| `ocr config get [key]` | read-only view of the config (`ocr config get provider`); secrets print as `(set)` |
+| `ocr review --path <dirs,files,globs>` (also `delegate`) | limit a review to part of the repo; files outside show as `out_of_scope` |
+| comma-separated flags keep `{a,b}` globs intact | `--exclude 'packages/{a,b}/**'` works |
+| `ocr rules check` shows `Review: selected / excluded (reason)` | no more rules for files that review silently skips, with a hint to `include` them |
+| changed files left out of the review are still named in the prompt, marked `[not under review]` | the model knows a matching test or data file changed and can read its diff |
+| json/sarif runs print `[ocr] Summary: status=… files=… comments=… tool_calls=… provider=… model=… elapsed=… session=…` to stderr | a zero-finding run is distinguishable from a skipped or shallow one |
+| successful tool calls record their real `duration_ms` in the session | timing in `ocr session` data and the viewer is truthful |
+| `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
+
 The fork talks to Claude only through the official `claude` binary. It never
 reads, copies or forwards Claude credentials. Before starting `claude` it
 removes the variables that would bill an API account, route through another
@@ -104,14 +119,23 @@ Added:
   `claudecode_proc_windows.go` and their tests
 - `plugins/open-code-review/claude-code/agents/ocr-reviewer.md`
 - `plugins/open-code-review/claude-code/commands/review-subscription.md`
+- `internal/agent/path_selection.go`, `internal/agent/context_only.go`,
+  `internal/config/rules/scope.go`, `internal/model/scope.go`,
+  `internal/session/tool_duration.go`, and in `cmd/opencodereview/`:
+  `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, with their tests
+- `examples/rules/structured-data.rule.json`
 - `scripts/fork-install.sh`, `scripts/fork-sync.sh`, `NOTICE.fork.md`
 - `docs/superpowers/specs/2026-09-23-claude-code-provider-design.md`,
   `docs/superpowers/plans/2026-09-23-claude-code-provider.md`
 
-Modified (a few registration lines each, marked under the license header):
+Modified (small, local edits, each marked under the license header with
+`Modified by Sergey Eroshenkov, 2026; see NOTICE.fork.md.`):
 
-- `internal/llm/protocol.go`, `internal/llm/client.go`,
-  `internal/llm/providers.go`, `internal/llm/providers_test.go`
+- `internal/llm/protocol.go`, `client.go`, `providers.go`, `providers_test.go`
+- `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
+- `internal/config/rules/system_rules.go`
+- `cmd/opencodereview/`: `llm_cmd.go`, `rules_cmd.go`, `review_cmd.go`,
+  `delegate_cmd.go`, `scan_cmd.go`, `shared.go`, `shared_flags.go`
 - `.claude-plugin/marketplace.json` (marketplace name and owner, so the fork's
   catalog neither collides with upstream's nor appears to be published by
   Alibaba; JSON has no comments, hence this note instead of a header)
