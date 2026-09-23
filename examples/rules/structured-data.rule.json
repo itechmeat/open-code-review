@@ -1,0 +1,12 @@
+{
+  "rules": [
+    {
+      "path": "**/*.json",
+      "rule": "Review JSON as code, not only as data: this rule is meant for repositories where JSON files are schemas, contracts, manifests or configuration.\n- Keys: misspellings, casing that breaks the file's convention, duplicated keys, keys the surrounding schema or siblings do not define.\n- Values: wrong types for the key (string vs number vs boolean), enum values outside the declared set, defaults that are not members of their own enum, min/max or length bounds that contradict each other, required fields missing or listed but never defined.\n- References: $ref, ids, file paths, package names or versions that point to something absent or inconsistent with other changed files.\n- Consistency: generated files that disagree with their source (for example a JSON schema versus the YAML or TypeScript it was generated from), and entries added in one place but not in its registry or index.\nDo not comment on the wording of human-readable strings or on reordering alone."
+    },
+    {
+      "path": "**/*.{yaml,yml}",
+      "rule": "Review YAML as code, not only as data: this rule is meant for repositories where YAML files are schemas, contracts, manifests or configuration.\n- Keys: misspellings, casing that breaks the file's convention, duplicated keys, keys the surrounding schema or siblings do not define.\n- Values: wrong types for the key (string vs number vs boolean), enum values outside the declared set, defaults that are not members of their own enum, min/max or length bounds that contradict each other, required fields missing or listed but never defined.\n- References: $ref, ids, file paths, package names or versions that point to something absent or inconsistent with other changed files.\n- Consistency: generated files that disagree with their source (for example YAML that a JSON schema or code is generated from), and entries added in one place but not in its registry or index.\nDo not comment on the wording of human-readable strings or on reordering alone.\nAlso flag indentation or anchor/alias mistakes that change the structure."
+    }
+  ]
+}
