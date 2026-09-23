@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -44,6 +45,31 @@ func runFakeClaude(mode string) int {
 		}
 		data, _ := json.Marshal(fakeClaudeDump{Args: os.Args[1:], Stdin: string(stdin), Env: os.Environ(), Dir: dir, SystemPrompt: string(system)})
 		_ = os.WriteFile(path, data, 0o600)
+		// Every call is also appended, for tests that span several requests.
+		if f, err := os.OpenFile(path+".all", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+			_, _ = f.Write(append(data, '\n'))
+			_ = f.Close()
+		}
+	}
+	// Like the real CLI, a persisted session leaves a transcript under the
+	// config dir's projects tree.
+	if cfg := os.Getenv("CLAUDE_CONFIG_DIR"); cfg != "" {
+		for i, a := range os.Args {
+			if a == "--session-id" && i+1 < len(os.Args) {
+				dir := filepath.Join(cfg, "projects", "-tmp-ocr-claude-x")
+				_ = os.MkdirAll(dir, 0o700)
+				_ = os.WriteFile(filepath.Join(dir, os.Args[i+1]+".jsonl"), []byte("{}\n"), 0o600)
+			}
+		}
+	}
+	if mode == "resume-fails" {
+		for _, a := range os.Args {
+			if a == "--resume" {
+				fmt.Print(`{"type":"result","is_error":true,"result":"No conversation found with session ID"}`)
+				return 1
+			}
+		}
+		mode = "tools"
 	}
 	usage := `"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":3,"cache_read_input_tokens":2}`
 	switch mode {

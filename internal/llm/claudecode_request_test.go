@@ -53,7 +53,7 @@ func TestBuildClaudeCodeInvocationTextMode(t *testing.T) {
 	if _, ok := argValue(t, inv.Args, "--json-schema"); ok {
 		t.Fatal("text request must not pass --json-schema")
 	}
-	for _, flag := range []string{"-p", "--strict-mcp-config", "--no-session-persistence"} {
+	for _, flag := range []string{"-p", "--strict-mcp-config"} {
 		if !containsString(inv.Args, flag) {
 			t.Errorf("missing %s in %q", flag, inv.Args)
 		}
@@ -198,7 +198,7 @@ Review a.go
 Looking.
 <tool_call id="c1" name="file_read">{"path":"a.go"}</tool_call>
 </message>
-<message role="tool" tool_call_id="c1">
+<message role="tool" tool_call_id="c1" name="file_read">
 package a
 </message>
 <message role="user">

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -54,6 +55,11 @@ type ClaudeCodeClient struct {
 	model   string
 	effort  string
 	timeout time.Duration
+
+	mu       sync.Mutex
+	workDir  string                       // stable cwd: --resume only finds sessions of the same directory
+	threads  map[string]*claudeCodeThread // by ChatRequest.SessionID
+	sessions []string                     // CLI session ids to delete on Close
 }
 
 // NewClaudeCodeClient builds a client from the resolved endpoint config. URL,
@@ -79,6 +85,14 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
+	model := strings.TrimSpace(req.Model)
+	if model == "" {
+		model = c.model
+	}
+	if req.SessionID != "" {
+		return c.completeInThread(ctx, bin, req, inv, model)
+	}
+
 	// An empty scratch directory keeps project CLAUDE.md / AGENTS.md files out
 	// of the model's context; OCR already supplies all the context it wants.
 	dir, err := os.MkdirTemp("", "ocr-claude-*")
@@ -86,16 +100,30 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 		return nil, fmt.Errorf("claude-code: create working directory: %w", err)
 	}
 	defer os.RemoveAll(dir)
-	systemFile := filepath.Join(dir, "system-prompt.txt")
-	if err := os.WriteFile(systemFile, []byte(inv.SystemPrompt), 0o600); err != nil {
+	return c.run(ctx, bin, dir, append(inv.Args, "--no-session-persistence"), inv.Stdin, inv, model)
+}
+
+// run executes one claude process in dir and maps its result.
+func (c *ClaudeCodeClient) run(ctx context.Context, bin, dir string, args []string, stdin string,
+	inv claudeCodeInvocation, model string) (*ChatResponse, error) {
+	system, err := os.CreateTemp(dir, "system-prompt-*.txt")
+	if err != nil {
 		return nil, fmt.Errorf("claude-code: write system prompt: %w", err)
+	}
+	defer os.Remove(system.Name())
+	_, werr := system.WriteString(inv.SystemPrompt)
+	if cerr := system.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		return nil, fmt.Errorf("claude-code: write system prompt: %w", werr)
 	}
 
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, bin, append(inv.Args, "--system-prompt-file", systemFile)...)
+	cmd := exec.CommandContext(ctx, bin, append(args, "--system-prompt-file", system.Name())...)
 	cmd.Dir = dir
 	cmd.Env = claudeCodeEnv(os.Environ())
-	cmd.Stdin = strings.NewReader(inv.Stdin)
+	cmd.Stdin = strings.NewReader(stdin)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.WaitDelay = 5 * time.Second
@@ -106,10 +134,6 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 		return nil, fmt.Errorf("claude-code: %w", ctxErr)
 	}
 
-	model := strings.TrimSpace(req.Model)
-	if model == "" {
-		model = c.model
-	}
 	resp, parseErr := parseClaudeCodeResult(stdout.Bytes(), inv.Structured, model)
 	switch {
 	case runErr == nil:

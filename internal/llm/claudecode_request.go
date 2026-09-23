@@ -95,7 +95,6 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel, effort string) (cl
 		"--tools", "",
 		"--strict-mcp-config",
 		"--setting-sources", "",
-		"--no-session-persistence",
 	}
 	if effort != "auto" {
 		args = append(args, "--effort", effort)
@@ -166,14 +165,37 @@ func claudeCodeSchema(tools []ToolDef, required bool) map[string]any {
 }
 
 func renderClaudeCodeTranscript(msgs []Message) string {
-	var sb strings.Builder
+	return renderClaudeCodeMessages(msgs, 0, false)
+}
+
+// renderClaudeCodeDelta renders what a resumed session has not seen yet: the
+// messages from index from on, minus assistant turns, which the session
+// already holds in its own form.
+func renderClaudeCodeDelta(msgs []Message, from int) string {
+	return renderClaudeCodeMessages(msgs, from, true)
+}
+
+func renderClaudeCodeMessages(msgs []Message, from int, skipAssistant bool) string {
+	// Tool results carry the tool name as well as the call id, so a resumed
+	// session whose assistant turns are not replayed can still pair them.
+	names := make(map[string]string)
 	for i := range msgs {
+		for _, tc := range msgs[i].ToolCalls {
+			names[tc.ID] = tc.Function.Name
+		}
+	}
+	var sb strings.Builder
+	for i := from; i < len(msgs); i++ {
 		m := &msgs[i]
-		if m.Role == "system" {
+		if m.Role == "system" || (skipAssistant && m.Role == "assistant") {
 			continue
 		}
 		if m.Role == "tool" {
-			fmt.Fprintf(&sb, "<message role=\"tool\" tool_call_id=%q>\n", m.ToolCallID)
+			fmt.Fprintf(&sb, "<message role=\"tool\" tool_call_id=%q", m.ToolCallID)
+			if name := names[m.ToolCallID]; name != "" {
+				fmt.Fprintf(&sb, " name=%q", name)
+			}
+			sb.WriteString(">\n")
 		} else {
 			fmt.Fprintf(&sb, "<message role=%q>\n", m.Role)
 		}

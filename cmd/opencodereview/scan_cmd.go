@@ -174,6 +174,7 @@ func executeScan(opts scanOptions) (retErr error) {
 	if err != nil {
 		return err
 	}
+	defer closeLLMClient(rt.Client)
 	maxTokens, err := resolveMaxTokens(scanTpl.MaxTokens, rt.AppCfg, opts.maxTokens)
 	if err != nil {
 		return err
