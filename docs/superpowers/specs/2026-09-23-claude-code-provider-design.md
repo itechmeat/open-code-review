@@ -93,7 +93,7 @@ claude -p
   (a live filter call returned an empty list instead of `approve_all_comments`).
   Verified on 2026-09-23: `claude -p --json-schema` enforces `anyOf` + `const`
   exactly.
-- **Bridge instruction** (prepended to the tool-mode system prompt): the only
+- **Bridge instruction** (appended to the tool-mode system prompt): the only
   invocable tool is StructuredOutput, OCR's tools are requested inside it,
   `content` is never delivered as a result. Without it a live haiku run wrote
   findings into `content` and only called `task_done`.
@@ -108,9 +108,10 @@ claude -p
 - **Working directory**: a per-process temp dir, removed afterwards, so no
   project `CLAUDE.md` / `AGENTS.md` is picked up.
 - **Environment**: the child inherits the parent environment except
-  `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `CLAUDE_CODE_USE_BEDROCK` /
+  `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` /
   `CLAUDE_CODE_USE_VERTEX`, which would silently switch Claude Code from the
-  subscription to paid API billing. Documented in the provider notes.
+  subscription to paid API billing or another gateway. Documented in the
+  provider notes.
 - **Binary**: `claude` from `PATH`; override with `OCR_CLAUDE_CODE_BIN`.
 - **Timeout / cancel**: the request context bounds the process; on cancel the
   whole process group is killed. New `claudecode_proc_unix.go` /
