@@ -40,6 +40,15 @@
 
 ---
 
+> **Об этом форке.** Это форк [alibaba/open-code-review](https://github.com/alibaba/open-code-review), который поддерживает Sergey Eroshenkov. Он добавляет провайдер `claude-code`: все обращения OCR к модели идут через официальный Claude Code CLI (`claude -p`), поэтому ревью работает на подписке Claude без API-ключа:
+>
+> ```bash
+> ocr config set providers.claude-code.model sonnet
+> ocr review --provider claude-code --audience agent
+> ```
+>
+> Изменения, мотивация и синхронизация с upstream: [NOTICE.fork.md](../../NOTICE.fork.md). Всё остальное ниже — документация upstream.
+
 ## Что такое Open Code Review?
 
 Open Code Review — это CLI-инструмент для код-ревью на основе ИИ. Он появился как внутренний официальный ИИ-ассистент код-ревью Alibaba Group: за последние два года им воспользовались десятки тысяч разработчиков, и он выявил миллионы дефектов в коде. После тщательной проверки в огромных масштабах мы превратили его в open-source-проект для сообщества. Чтобы начать работу, достаточно настроить эндпоинт модели.

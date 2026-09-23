@@ -40,6 +40,15 @@
 
 ---
 
+> **关于此分支。** 本仓库是 [alibaba/open-code-review](https://github.com/alibaba/open-code-review) 的分支，由 Sergey Eroshenkov 维护。它新增了 `claude-code` 提供方：OCR 的每一次 LLM 调用都通过官方 Claude Code CLI（`claude -p`）完成，因此无需 API 密钥即可使用 Claude 订阅进行评审：
+>
+> ```bash
+> ocr config set providers.claude-code.model sonnet
+> ocr review --provider claude-code --audience agent
+> ```
+>
+> 变更内容、设计理由与上游同步方式见 [NOTICE.fork.md](../../NOTICE.fork.md)。以下其余内容均为上游文档。
+
 ## Open Code Review 是什么？
 
 Open Code Review 是一款 AI 驱动的代码审查 CLI 工具。它的前身是阿里集团内部官方 AI 代码审查助手，过去两年在内部服务了数万开发者，识别了数百万个代码缺陷。经过大规模充分验证后，我们将其孵化为开源项目，对社区开放。只需配置一个模型端点即可使用。

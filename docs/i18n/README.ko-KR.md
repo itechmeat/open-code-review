@@ -40,6 +40,15 @@
 
 ---
 
+> **이 포크에 대하여.** 이 저장소는 Sergey Eroshenkov가 관리하는 [alibaba/open-code-review](https://github.com/alibaba/open-code-review)의 포크입니다. `claude-code` 제공자를 추가하여 OCR의 모든 LLM 호출을 공식 Claude Code CLI(`claude -p`)로 처리하므로, API 키 없이 Claude 구독으로 리뷰를 실행할 수 있습니다:
+>
+> ```bash
+> ocr config set providers.claude-code.model sonnet
+> ocr review --provider claude-code --audience agent
+> ```
+>
+> 변경 사항, 설계 이유, 업스트림 동기화 방법은 [NOTICE.fork.md](../../NOTICE.fork.md)를 참고하세요. 아래의 나머지 내용은 모두 업스트림 문서입니다.
+
 ## Open Code Review란?
 
 Open Code Review는 AI 기반 코드 리뷰 CLI 도구입니다. Alibaba Group의 내부 공식 AI 코드 리뷰 어시스턴트에서 시작했으며, 지난 2년 동안 수만 명의 개발자에게 제공되어 수백만 건의 코드 결함을 찾아냈습니다. 대규모 환경에서 충분히 검증한 뒤 커뮤니티를 위해 오픈 소스 프로젝트로 공개했습니다. 모델 endpoint만 설정하면 바로 사용할 수 있습니다.
