@@ -46,6 +46,9 @@ it can be offered upstream:
 | built-in rule for test files (`*.test.*`, `*.spec.*`, `__tests__/`, `*_test.go`, `test_*.py`, `*_test.py`) | once tests are included, they are reviewed for real assertions, consistent fixtures and isolation instead of the generic language checklist |
 | `examples/rules/docs.rule.json` | opt-in: includes Markdown/MDX/RST/AsciiDoc and reviews them for accuracy against the code, contradictions and broken examples |
 | the claude-code provider skips terminal-integration shims on `PATH` (cmux) and drops `CMUX_SURFACE_ID` | headless runs are not given the terminal's hooks, session ids or MCP server |
+| `code_search` and `file_read` reach installed dependency sources (`node_modules/`, `vendor/`, `site-packages/`) in every mode; other ignored files and secret paths stay unreachable | "No matches found" no longer means "not searchable", so contradictions with a library can be settled instead of hedged |
+| the review prompt asks to settle which side of a contradiction is wrong and to name the generator when generated output is wrong | findings land on the file that needs the fix |
+| review dedup also merges findings that share one root cause and names the file to fix | one generator bug reported from several generated files comes back once |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 
 The fork talks to Claude only through the official `claude` binary. It never
@@ -138,7 +141,7 @@ Added:
   `internal/session/tool_duration.go`, `internal/scan/dedup_comments.go`,
   `internal/config/rules/provenance.go`, and in `cmd/opencodereview/`:
   `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, `review_dedup.go`,
-  `llm_close.go`,
+  `review_guidance.go`, `llm_close.go`, and `internal/tool/dependency_source.go`,
   with their tests
 - `examples/rules/structured-data.rule.json`, `examples/rules/docs.rule.json`
 - `internal/config/rules/rule_docs/tests.md`
@@ -151,6 +154,7 @@ Modified (small, local edits, each marked under the license header with
 
 - `internal/llm/protocol.go`, `client.go`, `providers.go`, `providers_test.go`
 - `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
+- `internal/tool/code_search.go`, `internal/tool/filereader.go`
 - `internal/config/rules/system_rules.go`, `system_rules.json` (test-file
   patterns ahead of the language rules)
 - `cmd/opencodereview/`: `llm_cmd.go`, `rules_cmd.go`, `review_cmd.go`,
@@ -159,6 +163,16 @@ Modified (small, local edits, each marked under the license header with
   catalog neither collides with upstream's nor appears to be published by
   Alibaba; JSON has no comments, hence this note instead of a header)
 - `README.md` and `docs/i18n/README.*.md` (the fork notice at the top)
+
+## Tips
+
+- Generated files reviewed next to their source double the cost and the
+  findings. Exclude the generated side, e.g. `--exclude '**/*.contract.json'`
+  or `"exclude"` in a rule file: those files still appear in the prompt as
+  `[not under review]` and the model can read their diff with
+  `file_read_diff`.
+- A rule file can carry both `include` and review rules, as
+  `examples/rules/docs.rule.json` does for Markdown.
 
 ## Keeping up with upstream (maintainer)
 

@@ -144,6 +144,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	}
 	applyCLIExcludes(cc, splitPaths(opts.excludes))
 	applyCLIScope(cc, splitPaths(opts.paths))
+	appendReviewGuidance(cc.Template)
 
 	// Security (#112): reject ref-option injection before any git invocation.
 	if err := validateReviewRefs(cc.RepoDir, opts); err != nil {

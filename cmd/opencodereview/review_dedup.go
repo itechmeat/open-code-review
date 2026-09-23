@@ -27,7 +27,8 @@ func dedupReviewComments(ctx context.Context, client llm.LLMClient, modelName st
 		return comments, nil, "skipped (--no-dedup)"
 	}
 	tpl, err := template.LoadScanDefault()
-	if err != nil || tpl.DedupTask == nil || len(tpl.DedupTask.Messages) == 0 {
+	conv := reviewDedupConversation()
+	if err != nil || conv == nil {
 		return comments, nil, "unavailable"
 	}
 	minN := tpl.DedupMinComments
@@ -38,7 +39,7 @@ func dedupReviewComments(ctx context.Context, client llm.LLMClient, modelName st
 		return comments, nil, fmt.Sprintf("skipped (%d findings)", len(comments))
 	}
 	start := time.Now()
-	out, usage, err := scan.DedupComments(ctx, client, modelName, tpl.DedupTask, comments, maxTokens)
+	out, usage, err := scan.DedupComments(ctx, client, modelName, conv, comments, maxTokens)
 	took := time.Since(start).Round(time.Second)
 	if err != nil {
 		fmt.Fprintf(stdout.Writer(), "[ocr] Dedup skipped: %v\n", err)
