@@ -1,6 +1,10 @@
 {
   "default_rule": "default.md",
   "path_rule_map": {
+    "**/*.{test,spec}.{ts,js,tsx,jsx,mjs,cjs}": "tests.md",
+    "**/__tests__/**/*.{ts,js,tsx,jsx,mjs,cjs}": "tests.md",
+    "**/*_test.go": "tests.md",
+    "**/{test_*,*_test}.py": "tests.md",
     "**/*.properties": "properties.md",
     "**/*{mapper,dao}*.xml": "mapper_dao_xml.md",
     "**/pom.xml": "pom_xml.md",

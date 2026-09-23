@@ -38,11 +38,14 @@ it can be offered upstream:
 | comma-separated flags keep `{a,b}` globs intact | `--exclude 'packages/{a,b}/**'` works |
 | `ocr rules check` shows `Review: selected / excluded (reason)` | no more rules for files that review silently skips, with a hint to `include` them |
 | changed files left out of the review are still named in the prompt, marked `[not under review]` | the model knows a matching test or data file changed and can read its diff |
-| json/sarif runs print `[ocr] Summary: status=… files=… comments=… tool_calls=… provider=… model=… elapsed=… session=…` to stderr | a zero-finding run is distinguishable from a skipped or shallow one |
+| json/sarif runs print `[ocr] Summary: status=… files=… comments=… tool_calls=… tokens=… provider=… model=… elapsed=… session=… dedup="…"` to stderr | a zero-finding run is distinguishable from a skipped or shallow one; `elapsed` includes dedup, which `manifest.elapsed_ms` (frozen when the review itself ended) does not |
 | successful tool calls record their real `duration_ms` in the session | timing in `ocr session` data and the viewer is truthful |
 | review merges duplicate findings across file groups with scan's DEDUP_TASK (`--no-dedup` to skip); the session keeps the raw per-file comments | the same problem reported from two files, or twice, comes back once |
 | each review checklist in the prompt names its source (OCR built-in, `--rule`, project or global rule file) | findings no longer present OCR's generic defaults as the repository's policy |
 | `ocr review -p` hints how to `include` files excluded as `default_path` / `unsupported_ext` | Markdown, tests and similar files are one rule entry away |
+| built-in rule for test files (`*.test.*`, `*.spec.*`, `__tests__/`, `*_test.go`, `test_*.py`, `*_test.py`) | once tests are included, they are reviewed for real assertions, consistent fixtures and isolation instead of the generic language checklist |
+| `examples/rules/docs.rule.json` | opt-in: includes Markdown/MDX/RST/AsciiDoc and reviews them for accuracy against the code, contradictions and broken examples |
+| the claude-code provider skips terminal-integration shims on `PATH` (cmux) and drops `CMUX_SURFACE_ID` | headless runs are not given the terminal's hooks, session ids or MCP server |
 | `examples/rules/structured-data.rule.json` | opt-in rule that reviews JSON/YAML values (types, enums, defaults, references), not only key spelling; use with `--rule` or copy into `.opencodereview/rule.json` |
 
 The fork talks to Claude only through the official `claude` binary. It never
@@ -137,7 +140,8 @@ Added:
   `config_get_cmd.go`, `path_scope.go`, `run_summary.go`, `review_dedup.go`,
   `llm_close.go`,
   with their tests
-- `examples/rules/structured-data.rule.json`
+- `examples/rules/structured-data.rule.json`, `examples/rules/docs.rule.json`
+- `internal/config/rules/rule_docs/tests.md`
 - `scripts/fork-install.sh`, `scripts/fork-sync.sh`, `NOTICE.fork.md`
 - `docs/superpowers/specs/2026-09-23-claude-code-provider-design.md`,
   `docs/superpowers/plans/2026-09-23-claude-code-provider.md`
@@ -147,7 +151,8 @@ Modified (small, local edits, each marked under the license header with
 
 - `internal/llm/protocol.go`, `client.go`, `providers.go`, `providers_test.go`
 - `internal/llmloop/loop.go`, `internal/agent/agent.go`, `internal/agent/selection.go`
-- `internal/config/rules/system_rules.go`
+- `internal/config/rules/system_rules.go`, `system_rules.json` (test-file
+  patterns ahead of the language rules)
 - `cmd/opencodereview/`: `llm_cmd.go`, `rules_cmd.go`, `review_cmd.go`,
   `delegate_cmd.go`, `scan_cmd.go`, `shared.go`, `shared_flags.go`, `output.go`
 - `.claude-plugin/marketplace.json` (marketplace name and owner, so the fork's

@@ -1,0 +1,11 @@
+{
+  "include": [
+    "**/*.{md,mdx,markdown,rst,adoc}"
+  ],
+  "rules": [
+    {
+      "path": "**/*.{md,mdx,markdown,rst,adoc}",
+      "rule": "Review this file as documentation that people rely on to understand and use the code.\n- Accuracy: every claim about behaviour, defaults, flags, paths, file names, function names and line references must match the code in this change; flag statements the diff makes false and references to things that no longer exist.\n- Consistency: the same fact must not be stated twice with different values, and examples must agree with the prose around them.\n- Completeness of the change: a new option, step or constraint the code introduced but the document leaves out, when the document claims to cover it.\n- Runnable examples: commands, code blocks and configuration snippets must be syntactically valid and use the names the code actually defines.\nDo not comment on style, tone, wording preferences, typos that do not change meaning, or formatting."
+    }
+  ]
+}

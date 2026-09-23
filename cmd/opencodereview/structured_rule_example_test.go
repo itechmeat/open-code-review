@@ -33,3 +33,24 @@ func TestStructuredDataRuleExampleApplies(t *testing.T) {
 		}
 	}
 }
+
+func TestDocsRuleExampleIncludesAndReviewsMarkdown(t *testing.T) {
+	repo := initRulesCheckTestRepo(t)
+	setRulesCheckRepo(t, repo)
+	example, err := filepath.Abs(filepath.Join("..", "..", "examples", "rules", "docs.rule.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := rulesCheckRulePath
+	rulesCheckRulePath = example
+	t.Cleanup(func() { rulesCheckRulePath = original })
+
+	got := captureStdout(t, func() {
+		if err := runRulesCheck("scripts/contracts/PILOT-NOTES.md"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(got, "Review:  selected") || !strings.Contains(got, "documentation") {
+		t.Errorf("the docs example must both include Markdown and give it the docs rule:\n%s", got)
+	}
+}
