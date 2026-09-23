@@ -61,6 +61,9 @@ func runFakeClaude(mode string) int {
 	case "error-limit":
 		fmt.Print(`{"type":"result","is_error":true,"result":"Claude AI usage limit reached|1760000000"}`)
 		return 1
+	case "old-cli":
+		fmt.Fprint(os.Stderr, "error: unknown option '--effort'")
+		return 1
 	case "stderr-only":
 		fmt.Fprint(os.Stderr, "boom: unexpected failure")
 		return 2

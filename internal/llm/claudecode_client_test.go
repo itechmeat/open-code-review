@@ -154,6 +154,7 @@ func TestClaudeCodeClientErrors(t *testing.T) {
 	}{
 		{"error-login", ErrClaudeCodeNotLoggedIn, "Not logged in"},
 		{"error-limit", ErrClaudeCodeUsageLimit, "usage limit"},
+		{"old-cli", ErrClaudeCodeOutdated, "unknown option '--effort'"},
 		{"stderr-only", nil, "boom: unexpected failure"},
 		{"garbage", nil, "not json"},
 	}
