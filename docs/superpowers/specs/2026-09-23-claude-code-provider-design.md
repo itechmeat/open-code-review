@@ -88,8 +88,20 @@ claude -p
          "required":["name","arguments"]}, …]}}},
    "required":["tool_calls"]}
   ```
-  `ToolChoice == "required"` adds `"minItems":1`. Verified on 2026-09-23:
-  `claude -p --json-schema` enforces `anyOf` + `const` exactly.
+  `"minItems":1` is added unless `ToolChoice == "auto"` explicitly: OCR never
+  sets tool_choice, but every tool-bearing request it makes expects an action
+  (a live filter call returned an empty list instead of `approve_all_comments`).
+  Verified on 2026-09-23: `claude -p --json-schema` enforces `anyOf` + `const`
+  exactly.
+- **Bridge instruction** (prepended to the tool-mode system prompt): the only
+  invocable tool is StructuredOutput, OCR's tools are requested inside it,
+  `content` is never delivered as a result. Without it a live haiku run wrote
+  findings into `content` and only called `task_done`.
+- **Effort**: `--effort low` by default, override with
+  `OCR_CLAUDE_CODE_EFFORT` (`low|medium|high|xhigh|max`, or `auto` to omit the
+  flag). Thinking time dominates latency: on a real main-task request sonnet
+  took ~12 s at low, ~27 s at medium, 25–60 s with the flag unset; one-file
+  review went from 6.5 min (haiku, unset) to 2 min (sonnet, low).
 - **No tools / `ToolChoice == "none"`**: no schema; the answer is the plain
   `result` text (grouping, re-location and compression tasks expect text or
   JSON in content).

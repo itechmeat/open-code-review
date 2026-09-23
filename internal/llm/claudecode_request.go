@@ -15,7 +15,22 @@ import (
 // model has to be told that OCR's tools are invoked through that output and
 // how their results come back in the transcript.
 const claudeCodeBridgeInstruction = `## Tool protocol
-You are the model behind a tool-calling agent. Call tools by listing them in "tool_calls" of your structured output, each with the tool "name" and its "arguments" object; several calls per turn are allowed. Tool results arrive in the next turn as <message role="tool" tool_call_id="..."> elements. Put any plain-text reply in "content".`
+You are the model inside a tool-calling agent loop, and each reply is one step of that loop.
+- StructuredOutput is the only tool you can invoke, and you invoke it exactly once per step. The agent's tools named in these instructions are not directly callable; request them by listing them in the "tool_calls" field of StructuredOutput, each with the tool "name" and its "arguments" object. Several independent calls per step are allowed.
+- Tool results arrive in the next turn as <message role="tool" tool_call_id="..."> elements. When you need information, request it and wait for the next turn instead of guessing.
+- Results the instructions ask you to report through a tool (findings, comments, answers) exist only when that tool is called. Text in "content" is not delivered to anyone as a result; keep it to a short note, or leave it empty.
+- Call a finishing tool only after every result has been reported through its tool.`
+
+// envClaudeCodeEffort selects Claude Code's reasoning effort. Thinking time
+// dominates each call's latency (measured on a real OCR main task: sonnet
+// ~12 s at low, ~27 s at medium, 25-60 s unset), and OCR's plan-and-review
+// pipeline already structures the work, so low is the default. "auto" leaves
+// the choice to Claude Code.
+const envClaudeCodeEffort = "OCR_CLAUDE_CODE_EFFORT"
+
+const claudeCodeDefaultEffort = "low"
+
+var claudeCodeEfforts = []string{"low", "medium", "high", "xhigh", "max"}
 
 // claudeCodeDefaultSystemPrompt stands in for an empty system prompt: an empty
 // --system-prompt makes the CLI fall back to its own coding-agent prompt.
@@ -29,13 +44,21 @@ type claudeCodeInvocation struct {
 	Structured bool
 }
 
-func buildClaudeCodeInvocation(req ChatRequest, defaultModel string) (claudeCodeInvocation, error) {
+func buildClaudeCodeInvocation(req ChatRequest, defaultModel, effort string) (claudeCodeInvocation, error) {
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
 		model = strings.TrimSpace(defaultModel)
 	}
 	if model == "" {
 		return claudeCodeInvocation{}, errors.New("claude-code: no model configured")
+	}
+
+	effort = strings.ToLower(strings.TrimSpace(effort))
+	if effort == "" {
+		effort = claudeCodeDefaultEffort
+	}
+	if effort != "auto" && !containsEffort(effort) {
+		return claudeCodeInvocation{}, fmt.Errorf("claude-code: %s=%q; want auto or one of %s", envClaudeCodeEffort, effort, strings.Join(claudeCodeEfforts, ", "))
 	}
 
 	var system []string
@@ -71,8 +94,13 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel string) (claudeCode
 		"--no-session-persistence",
 		"--system-prompt", systemPrompt,
 	}
+	if effort != "auto" {
+		args = append(args, "--effort", effort)
+	}
 	if structured {
-		schema, err := json.Marshal(claudeCodeSchema(req.Tools, req.ToolChoice == "required"))
+		// OCR never sets tool_choice, yet every tool-bearing request it makes
+		// expects an action, so only an explicit "auto" allows an empty list.
+		schema, err := json.Marshal(claudeCodeSchema(req.Tools, req.ToolChoice != "auto"))
 		if err != nil {
 			return claudeCodeInvocation{}, fmt.Errorf("claude-code: encode tool schema: %w", err)
 		}
@@ -84,6 +112,15 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel string) (claudeCode
 		Stdin:      renderClaudeCodeTranscript(conversation),
 		Structured: structured,
 	}, nil
+}
+
+func containsEffort(effort string) bool {
+	for _, e := range claudeCodeEfforts {
+		if e == effort {
+			return true
+		}
+	}
+	return false
 }
 
 // claudeCodeSchema turns OCR's tool definitions into one structured-output

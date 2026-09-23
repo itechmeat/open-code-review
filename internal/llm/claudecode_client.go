@@ -33,18 +33,19 @@ var claudeCodeScrubbedEnv = []string{
 // in headless mode, one process per request.
 type ClaudeCodeClient struct {
 	model   string
+	effort  string
 	timeout time.Duration
 }
 
 // NewClaudeCodeClient builds a client from the resolved endpoint config. URL,
 // key and headers are ignored: the CLI authenticates with its own login.
 func NewClaudeCodeClient(cfg ClientConfig) *ClaudeCodeClient {
-	return &ClaudeCodeClient{model: cfg.Model, timeout: cfg.Timeout}
+	return &ClaudeCodeClient{model: cfg.Model, effort: os.Getenv(envClaudeCodeEffort), timeout: cfg.Timeout}
 }
 
 // CompletionsWithCtx implements LLMClient.
 func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	inv, err := buildClaudeCodeInvocation(req, c.model)
+	inv, err := buildClaudeCodeInvocation(req, c.model, c.effort)
 	if err != nil {
 		return nil, err
 	}

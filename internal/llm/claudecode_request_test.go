@@ -43,7 +43,7 @@ func TestBuildClaudeCodeInvocationTextMode(t *testing.T) {
 			NewTextMessage("system", "Group the files."),
 			NewTextMessage("user", "a.go\nb.go"),
 		},
-	}, "haiku")
+	}, "haiku", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestBuildClaudeCodeInvocationStructuredMode(t *testing.T) {
 		Model:    "opus",
 		Messages: []Message{NewTextMessage("system", "Review."), NewTextMessage("user", "diff")},
 		Tools:    testTools(),
-	}, "haiku")
+	}, "haiku", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +95,13 @@ func TestBuildClaudeCodeInvocationStructuredMode(t *testing.T) {
 	sys, _ := argValue(t, inv.Args, "--system-prompt")
 	if !strings.HasPrefix(sys, "Review.") || !strings.Contains(sys, "tool_calls") {
 		t.Errorf("system prompt must keep OCR's prompt and add the bridge instruction, got %q", sys)
+	}
+	// A live haiku run wrote its findings into content and only called
+	// task_done; the bridge must say content is never delivered as a result.
+	for _, phrase := range []string{"one step", "not delivered", "next turn"} {
+		if !strings.Contains(sys, phrase) {
+			t.Errorf("bridge instruction must mention %q, got %q", phrase, sys)
+		}
 	}
 	raw, ok := argValue(t, inv.Args, "--json-schema")
 	if !ok {
@@ -126,21 +133,40 @@ func TestBuildClaudeCodeInvocationStructuredMode(t *testing.T) {
 }
 
 func TestClaudeCodeSchemaToolChoice(t *testing.T) {
-	calls := func(s map[string]any) map[string]any {
-		return s["properties"].(map[string]any)["tool_calls"].(map[string]any)
+	minItems := func(choice string) (any, bool) {
+		t.Helper()
+		inv, err := buildClaudeCodeInvocation(ChatRequest{
+			Messages:   []Message{NewTextMessage("user", "x")},
+			Tools:      testTools(),
+			ToolChoice: choice,
+		}, "haiku", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := argValue(t, inv.Args, "--json-schema")
+		var schema map[string]any
+		if err := json.Unmarshal([]byte(raw), &schema); err != nil {
+			t.Fatal(err)
+		}
+		v, ok := schema["properties"].(map[string]any)["tool_calls"].(map[string]any)["minItems"]
+		return v, ok
 	}
-	if _, ok := calls(claudeCodeSchema(testTools(), false))["minItems"]; ok {
-		t.Error("auto tool choice must allow an empty tool_calls")
+	// Every OCR request that offers tools expects an action; a live filter
+	// call answered with an empty list instead of approve_all_comments.
+	for _, choice := range []string{"", "required"} {
+		if v, ok := minItems(choice); !ok || v != float64(1) {
+			t.Errorf("tool_choice %q: minItems = %v (present %v), want 1", choice, v, ok)
+		}
 	}
-	if got := calls(claudeCodeSchema(testTools(), true))["minItems"]; got != 1 {
-		t.Errorf("required tool choice minItems = %v", got)
+	if _, ok := minItems("auto"); ok {
+		t.Error("explicit auto must allow an empty tool_calls")
 	}
 
 	inv, err := buildClaudeCodeInvocation(ChatRequest{
 		Messages:   []Message{NewTextMessage("user", "x")},
 		Tools:      testTools(),
 		ToolChoice: "none",
-	}, "haiku")
+	}, "haiku", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +208,7 @@ func TestBuildClaudeCodeInvocationLargePromptGoesToStdin(t *testing.T) {
 	inv, err := buildClaudeCodeInvocation(ChatRequest{
 		Messages: []Message{NewTextMessage("system", "s"), NewTextMessage("user", big)},
 		Tools:    testTools(),
-	}, "haiku")
+	}, "haiku", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,14 +223,14 @@ func TestBuildClaudeCodeInvocationLargePromptGoesToStdin(t *testing.T) {
 }
 
 func TestBuildClaudeCodeInvocationRequiresModel(t *testing.T) {
-	_, err := buildClaudeCodeInvocation(ChatRequest{Messages: []Message{NewTextMessage("user", "x")}}, "")
+	_, err := buildClaudeCodeInvocation(ChatRequest{Messages: []Message{NewTextMessage("user", "x")}}, "", "")
 	if err == nil || !strings.Contains(err.Error(), "no model") {
 		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestBuildClaudeCodeInvocationDefaultsEmptySystemPrompt(t *testing.T) {
-	inv, err := buildClaudeCodeInvocation(ChatRequest{Messages: []Message{NewTextMessage("user", "x")}}, "haiku")
+	inv, err := buildClaudeCodeInvocation(ChatRequest{Messages: []Message{NewTextMessage("user", "x")}}, "haiku", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,4 +246,31 @@ func containsString(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func TestBuildClaudeCodeInvocationEffort(t *testing.T) {
+	req := ChatRequest{Messages: []Message{NewTextMessage("user", "x")}}
+	tests := []struct {
+		effort  string
+		want    string
+		present bool
+	}{
+		{"", "low", true},
+		{"high", "high", true},
+		{" XHigh ", "xhigh", true},
+		{"auto", "", false},
+	}
+	for _, tt := range tests {
+		inv, err := buildClaudeCodeInvocation(req, "haiku", tt.effort)
+		if err != nil {
+			t.Fatalf("effort %q: %v", tt.effort, err)
+		}
+		got, ok := argValue(t, inv.Args, "--effort")
+		if ok != tt.present || got != tt.want {
+			t.Errorf("effort %q: --effort = %q (present %v), want %q (present %v)", tt.effort, got, ok, tt.want, tt.present)
+		}
+	}
+	if _, err := buildClaudeCodeInvocation(req, "haiku", "turbo"); err == nil || !strings.Contains(err.Error(), envClaudeCodeEffort) {
+		t.Fatalf("unknown effort must name %s, got %v", envClaudeCodeEffort, err)
+	}
 }

@@ -268,3 +268,14 @@ func TestCompactToolArgumentsPassesThroughInvalidJSON(t *testing.T) {
 		t.Errorf("invalid JSON must pass through for OCR's argument repair, got %q", got)
 	}
 }
+
+func TestClaudeCodeClientEffortFromEnv(t *testing.T) {
+	dump := useFakeClaude(t, "tools")
+	t.Setenv(envClaudeCodeEffort, "high")
+	if _, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest()); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := argValue(t, readFakeDump(t, dump).Args, "--effort"); got != "high" {
+		t.Errorf("--effort = %q, want high", got)
+	}
+}
