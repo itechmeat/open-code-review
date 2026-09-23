@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -19,15 +20,33 @@ import (
 const envClaudeCodeBin = "OCR_CLAUDE_CODE_BIN"
 
 // claudeCodeScrubbedEnv lists variables that would make Claude Code bill an
-// API account or route to another gateway instead of using its own login,
-// which is the whole reason to pick this provider.
+// API account, route to another gateway or remap the requested model instead
+// of using its own login, plus the parent Claude Code session's identity so
+// each run is an independent session even when OCR is launched from one.
 var claudeCodeScrubbedEnv = []string{
 	"ANTHROPIC_API_KEY",
 	"ANTHROPIC_AUTH_TOKEN",
 	"ANTHROPIC_BASE_URL",
+	"ANTHROPIC_CUSTOM_HEADERS",
 	"CLAUDE_CODE_USE_BEDROCK",
 	"CLAUDE_CODE_USE_VERTEX",
+	"CLAUDE_CODE_USE_FOUNDRY",
+	"ANTHROPIC_MODEL",
+	"ANTHROPIC_DEFAULT_SONNET_MODEL",
+	"ANTHROPIC_DEFAULT_OPUS_MODEL",
+	"ANTHROPIC_DEFAULT_HAIKU_MODEL",
+	"ANTHROPIC_SMALL_FAST_MODEL",
+	"CLAUDECODE",
+	"CLAUDE_CODE_SESSION_ID",
+	"CLAUDE_CODE_CHILD_SESSION",
+	"CLAUDE_CODE_MESSAGING_SOCKET",
+	"CLAUDE_CODE_MESSAGING_TOKEN",
 }
+
+// claudeCodeDefaultTimeout bounds one request when the endpoint sets none.
+// Plan, grouping and re-location calls run outside OCR's per-group timeout, so
+// without it a hung CLI would hang the whole review.
+const claudeCodeDefaultTimeout = 15 * time.Minute
 
 // ClaudeCodeClient serves chat requests by running the local Claude Code CLI
 // in headless mode, one process per request.
@@ -40,7 +59,11 @@ type ClaudeCodeClient struct {
 // NewClaudeCodeClient builds a client from the resolved endpoint config. URL,
 // key and headers are ignored: the CLI authenticates with its own login.
 func NewClaudeCodeClient(cfg ClientConfig) *ClaudeCodeClient {
-	return &ClaudeCodeClient{model: cfg.Model, effort: os.Getenv(envClaudeCodeEffort), timeout: cfg.Timeout}
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = claudeCodeDefaultTimeout
+	}
+	return &ClaudeCodeClient{model: cfg.Model, effort: os.Getenv(envClaudeCodeEffort), timeout: timeout}
 }
 
 // CompletionsWithCtx implements LLMClient.
@@ -53,11 +76,8 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 	if err != nil {
 		return nil, err
 	}
-	if c.timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
 	// An empty scratch directory keeps project CLAUDE.md / AGENTS.md files out
 	// of the model's context; OCR already supplies all the context it wants.
@@ -66,9 +86,13 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 		return nil, fmt.Errorf("claude-code: create working directory: %w", err)
 	}
 	defer os.RemoveAll(dir)
+	systemFile := filepath.Join(dir, "system-prompt.txt")
+	if err := os.WriteFile(systemFile, []byte(inv.SystemPrompt), 0o600); err != nil {
+		return nil, fmt.Errorf("claude-code: write system prompt: %w", err)
+	}
 
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, bin, inv.Args...)
+	cmd := exec.CommandContext(ctx, bin, append(inv.Args, "--system-prompt-file", systemFile)...)
 	cmd.Dir = dir
 	cmd.Env = claudeCodeEnv(os.Environ())
 	cmd.Stdin = strings.NewReader(inv.Stdin)
@@ -103,15 +127,22 @@ func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatReque
 }
 
 func claudeCodeBinary() (string, error) {
-	if bin := strings.TrimSpace(os.Getenv(envClaudeCodeBin)); bin != "" {
+	bin := strings.TrimSpace(os.Getenv(envClaudeCodeBin))
+	if bin != "" {
 		if _, err := os.Stat(bin); err != nil {
 			return "", fmt.Errorf("claude-code: %s=%q: %w", envClaudeCodeBin, bin, err)
 		}
-		return bin, nil
+	} else {
+		var err error
+		if bin, err = exec.LookPath("claude"); err != nil {
+			return "", fmt.Errorf("claude-code: claude CLI not found on PATH (install Claude Code or set %s): %w", envClaudeCodeBin, err)
+		}
 	}
-	bin, err := exec.LookPath("claude")
-	if err != nil {
-		return "", fmt.Errorf("claude-code: claude CLI not found on PATH (install Claude Code or set %s): %w", envClaudeCodeBin, err)
+	// cmd.exe re-parses a batch shim's arguments, mangling the JSON schema's
+	// quotes, and killing the shim on cancel leaves the real CLI running.
+	switch strings.ToLower(filepath.Ext(bin)) {
+	case ".cmd", ".bat":
+		return "", fmt.Errorf("claude-code: %s is a batch shim; install the native claude executable or point %s at it", bin, envClaudeCodeBin)
 	}
 	return bin, nil
 }

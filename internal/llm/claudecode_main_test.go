@@ -28,13 +28,21 @@ type fakeClaudeDump struct {
 	Stdin string   `json:"stdin"`
 	Env   []string `json:"env"`
 	Dir   string   `json:"dir"`
+	// SystemPrompt is the content of the --system-prompt-file the client wrote.
+	SystemPrompt string `json:"system_prompt"`
 }
 
 func runFakeClaude(mode string) int {
 	stdin, _ := io.ReadAll(os.Stdin)
 	if path := os.Getenv("OCR_FAKE_CLAUDE_DUMP"); path != "" {
 		dir, _ := os.Getwd()
-		data, _ := json.Marshal(fakeClaudeDump{Args: os.Args[1:], Stdin: string(stdin), Env: os.Environ(), Dir: dir})
+		var system []byte
+		for i, a := range os.Args {
+			if a == "--system-prompt-file" && i+1 < len(os.Args) {
+				system, _ = os.ReadFile(os.Args[i+1])
+			}
+		}
+		data, _ := json.Marshal(fakeClaudeDump{Args: os.Args[1:], Stdin: string(stdin), Env: os.Environ(), Dir: dir, SystemPrompt: string(system)})
 		_ = os.WriteFile(path, data, 0o600)
 	}
 	usage := `"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":3,"cache_read_input_tokens":2}`

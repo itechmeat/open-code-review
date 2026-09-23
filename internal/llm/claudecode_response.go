@@ -57,7 +57,11 @@ func parseClaudeCodeResult(stdout []byte, structured bool, model string) (*ChatR
 	finish := "stop"
 	if structured {
 		if len(res.StructuredOutput) == 0 || string(res.StructuredOutput) == "null" {
-			return nil, fmt.Errorf("claude-code: no structured output (subtype %q): %s", res.Subtype, truncateForError(res.Result))
+			// Returned as a plain reply rather than an error: OCR's loop nudges and
+			// retries a turn without tool calls, while an error fails the group.
+			content := res.Result
+			msg.Content = &content
+			return claudeCodeResponse(msg, finish, model, res), nil
 		}
 		var out claudeCodeStructured
 		if err := json.Unmarshal(res.StructuredOutput, &out); err != nil {
@@ -82,6 +86,10 @@ func parseClaudeCodeResult(stdout []byte, structured bool, model string) (*ChatR
 		msg.Content = &content
 	}
 
+	return claudeCodeResponse(msg, finish, model, res), nil
+}
+
+func claudeCodeResponse(msg ResponseMessage, finish, model string, res claudeCodeResult) *ChatResponse {
 	// Claude Code reports cached input separately; OCR's prompt count includes
 	// it, as the Anthropic client's accounting does.
 	prompt := res.Usage.InputTokens + res.Usage.CacheCreationInputTokens + res.Usage.CacheReadInputTokens
@@ -95,7 +103,7 @@ func parseClaudeCodeResult(stdout []byte, structured bool, model string) (*ChatR
 			CacheReadTokens:  res.Usage.CacheReadInputTokens,
 			CacheWriteTokens: res.Usage.CacheCreationInputTokens,
 		},
-	}, nil
+	}
 }
 
 // compactToolArguments normalizes arguments to a JSON object string. A model

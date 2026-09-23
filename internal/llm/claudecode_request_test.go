@@ -63,11 +63,18 @@ func TestBuildClaudeCodeInvocationTextMode(t *testing.T) {
 		"--model":           "haiku",
 		"--tools":           "",
 		"--setting-sources": "",
-		"--system-prompt":   "Group the files.",
 	} {
 		if got, ok := argValue(t, inv.Args, flag); !ok || got != want {
 			t.Errorf("%s = %q (present %v), want %q", flag, got, ok, want)
 		}
+	}
+	if inv.SystemPrompt != "Group the files." {
+		t.Errorf("SystemPrompt = %q", inv.SystemPrompt)
+	}
+	// The prompt travels in a file: a cmd.exe shim would cut an argument at its
+	// first newline, and argv is visible to other local users.
+	if _, ok := argValue(t, inv.Args, "--system-prompt"); ok {
+		t.Error("system prompt must not be passed in argv")
 	}
 	if strings.Contains(inv.Stdin, "Group the files.") {
 		t.Error("system prompt leaked into stdin")
@@ -92,7 +99,7 @@ func TestBuildClaudeCodeInvocationStructuredMode(t *testing.T) {
 	if got, _ := argValue(t, inv.Args, "--model"); got != "opus" {
 		t.Errorf("request model must win, got %q", got)
 	}
-	sys, _ := argValue(t, inv.Args, "--system-prompt")
+	sys := inv.SystemPrompt
 	if !strings.HasPrefix(sys, "Review.") || !strings.Contains(sys, "tool_calls") {
 		t.Errorf("system prompt must keep OCR's prompt and add the bridge instruction, got %q", sys)
 	}
@@ -234,7 +241,7 @@ func TestBuildClaudeCodeInvocationDefaultsEmptySystemPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sys, _ := argValue(t, inv.Args, "--system-prompt"); strings.TrimSpace(sys) == "" {
+	if strings.TrimSpace(inv.SystemPrompt) == "" {
 		t.Error("an empty --system-prompt would fall back to Claude Code's own prompt")
 	}
 }

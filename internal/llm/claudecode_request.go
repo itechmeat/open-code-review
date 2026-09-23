@@ -37,8 +37,11 @@ var claudeCodeEfforts = []string{"low", "medium", "high", "xhigh", "max"}
 const claudeCodeDefaultSystemPrompt = "Follow the user's instructions precisely."
 
 type claudeCodeInvocation struct {
-	Args  []string
-	Stdin string
+	// Args excludes the system prompt, which the client writes to a file and
+	// passes with --system-prompt-file.
+	Args         []string
+	SystemPrompt string
+	Stdin        string
 	// Structured is true when the answer is expected in structured_output
 	// (tool calls) rather than in the plain result text.
 	Structured bool
@@ -82,8 +85,9 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel, effort string) (cl
 		systemPrompt = claudeCodeDefaultSystemPrompt
 	}
 
-	// Everything that can be large travels on stdin; argv only carries the
-	// system prompt and the schema, which are bounded by OCR's templates.
+	// Everything that can be large travels on stdin, and the system prompt in a
+	// file: a Windows .cmd shim would cut an argument at its first newline, and
+	// argv is visible to other local users.
 	args := []string{
 		"-p",
 		"--output-format", "json",
@@ -92,7 +96,6 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel, effort string) (cl
 		"--strict-mcp-config",
 		"--setting-sources", "",
 		"--no-session-persistence",
-		"--system-prompt", systemPrompt,
 	}
 	if effort != "auto" {
 		args = append(args, "--effort", effort)
@@ -108,9 +111,10 @@ func buildClaudeCodeInvocation(req ChatRequest, defaultModel, effort string) (cl
 	}
 
 	return claudeCodeInvocation{
-		Args:       args,
-		Stdin:      renderClaudeCodeTranscript(conversation),
-		Structured: structured,
+		Args:         args,
+		SystemPrompt: systemPrompt,
+		Stdin:        renderClaudeCodeTranscript(conversation),
+		Structured:   structured,
 	}, nil
 }
 

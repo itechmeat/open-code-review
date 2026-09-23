@@ -61,7 +61,7 @@ Each `CompletionsWithCtx` call spawns:
 claude -p
   --output-format json
   --model <ChatRequest.Model>
-  --system-prompt <joined system messages>
+  --system-prompt-file <tmp>/system-prompt.txt   # joined system messages
   --tools ""                 # no built-in Claude Code tools
   --strict-mcp-config        # no MCP servers
   --setting-sources ""       # no user/project settings, hooks, plugins
@@ -107,12 +107,20 @@ claude -p
   JSON in content).
 - **Working directory**: a per-process temp dir, removed afterwards, so no
   project `CLAUDE.md` / `AGENTS.md` is picked up.
-- **Environment**: the child inherits the parent environment except
+- **Environment** (see NOTICE.fork.md for the full, current list; model
+  remaps, Foundry and parent-session identity were added after review): the
+  child inherits the parent environment except
   `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` /
   `CLAUDE_CODE_USE_VERTEX`, which would silently switch Claude Code from the
   subscription to paid API billing or another gateway. Documented in the
   provider notes.
 - **Binary**: `claude` from `PATH`; override with `OCR_CLAUDE_CODE_BIN`.
+  `.cmd`/`.bat` shims are refused (cmd.exe re-parses arguments; killing the
+  shim leaves the CLI running).
+- **Timeout**: endpoint timeout, else 15 min per request.
+- **No structured output** (model ignored the schema): returned as a
+  text-only reply so OCR's loop nudges and retries instead of failing the
+  group.
 - **Timeout / cancel**: the request context bounds the process; on cancel the
   whole process group is killed. New `claudecode_proc_unix.go` /
   `claudecode_proc_windows.go` in `internal/llm` set `Setpgid` and kill the
@@ -131,7 +139,7 @@ The CLI's JSON result (`type:"result"`) is mapped to `llm.ChatResponse`:
 - `usage.input_tokens + cache_creation + cache_read` → `PromptTokens`;
   `output_tokens` → `CompletionTokens`; cache fields → `CacheReadTokens` /
   `CacheWriteTokens`. Session token stats stay truthful.
-- `model` → from the CLI result when present, else the requested model.
+- `model` → the requested model.
 
 ## Errors
 

@@ -79,6 +79,9 @@ func TestClaudeCodeClientMapsToolCalls(t *testing.T) {
 	}
 
 	d := readFakeDump(t, dump)
+	if !strings.HasPrefix(d.SystemPrompt, "Review.") || !strings.Contains(d.SystemPrompt, "Tool protocol") {
+		t.Errorf("system prompt file = %q", d.SystemPrompt)
+	}
 	if !strings.Contains(d.Stdin, "the diff") {
 		t.Errorf("stdin = %q", d.Stdin)
 	}
@@ -129,11 +132,17 @@ func TestClaudeCodeClientTextMode(t *testing.T) {
 	}
 }
 
-func TestClaudeCodeClientMissingStructuredOutput(t *testing.T) {
+func TestClaudeCodeClientMissingStructuredOutputIsSoft(t *testing.T) {
+	// A reply without tool calls lets OCR's loop nudge and retry; an error
+	// would fail every file in the group at once.
 	useFakeClaude(t, "missing-structured")
-	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
-	if err == nil || !strings.Contains(err.Error(), "structured output") {
-		t.Fatalf("err = %v", err)
+	resp, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+	if err != nil {
+		t.Fatalf("err = %v, want a text-only response", err)
+	}
+	msg := resp.Choices[0].Message
+	if len(msg.ToolCalls) != 0 || msg.Content == nil || *msg.Content != "I refuse to use the schema" || resp.Choices[0].FinishReason != "stop" {
+		t.Errorf("response = %+v", resp.Choices[0])
 	}
 }
 
@@ -205,13 +214,44 @@ func TestClaudeCodeClientScrubsBillingEnv(t *testing.T) {
 }
 
 func TestClaudeCodeEnv(t *testing.T) {
-	got := claudeCodeEnv([]string{
-		"PATH=/bin", "ANTHROPIC_API_KEY=k", "ANTHROPIC_AUTH_TOKEN=t", "ANTHROPIC_BASE_URL=u",
-		"CLAUDE_CODE_USE_BEDROCK=1", "CLAUDE_CODE_USE_VERTEX=1", "ANTHROPIC_API_KEY_HELPER=keep",
-	})
+	scrubbed := []string{
+		"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_CUSTOM_HEADERS",
+		"CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
+		"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL",
+		"ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
+		"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
+		"CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
+	}
+	in := []string{"PATH=/bin", "ANTHROPIC_API_KEY_HELPER=keep"}
+	for _, k := range scrubbed {
+		in = append(in, k+"=x")
+	}
+	got := claudeCodeEnv(in)
 	want := []string{"PATH=/bin", "ANTHROPIC_API_KEY_HELPER=keep"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("env = %q, want %q", got, want)
+	}
+}
+
+func TestClaudeCodeBinaryRejectsBatchShims(t *testing.T) {
+	for _, name := range []string{"claude.cmd", "CLAUDE.BAT"} {
+		path := filepath.Join(t.TempDir(), name)
+		if err := os.WriteFile(path, nil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv(envClaudeCodeBin, path)
+		if _, err := claudeCodeBinary(); err == nil || !strings.Contains(err.Error(), "native") {
+			t.Errorf("%s: err = %v, want a hint to use the native claude executable", name, err)
+		}
+	}
+}
+
+func TestClaudeCodeClientDefaultTimeout(t *testing.T) {
+	if got := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).timeout; got != claudeCodeDefaultTimeout {
+		t.Errorf("timeout = %v, want %v", got, claudeCodeDefaultTimeout)
+	}
+	if got := NewClaudeCodeClient(ClientConfig{Model: "haiku", Timeout: time.Minute}).timeout; got != time.Minute {
+		t.Errorf("explicit timeout = %v", got)
 	}
 }
 

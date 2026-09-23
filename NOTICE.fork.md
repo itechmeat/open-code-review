@@ -20,11 +20,19 @@ OCR's own pipeline is untouched, so sessions, `ocr session …`, `ocr viewer`,
 `--resume` and every output format work as upstream documents them.
 
 The fork talks to Claude only through the official `claude` binary. It never
-reads, copies or forwards Claude credentials, and it removes
-`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
-`CLAUDE_CODE_USE_BEDROCK` and `CLAUDE_CODE_USE_VERTEX` from the child
-environment so a review cannot silently bill an API account or go through
-another gateway.
+reads, copies or forwards Claude credentials. Before starting `claude` it
+removes the variables that would bill an API account, route through another
+gateway or remap the requested model (`ANTHROPIC_API_KEY`,
+`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`,
+`ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_*_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`,
+`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_USE_FOUNDRY`),
+and the parent Claude Code session's identity (`CLAUDECODE`,
+`CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_CHILD_SESSION`,
+`CLAUDE_CODE_MESSAGING_SOCKET`, `CLAUDE_CODE_MESSAGING_TOKEN`), so each run is an independent session.
+
+Each request is bounded by the provider's `timeout_sec`, or 15 minutes when
+none is set. On Windows the native `claude.exe` is required; npm's
+`claude.cmd` shim is refused because `cmd.exe` mangles the arguments.
 
 ## Usage
 
