@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package main
 
@@ -855,6 +856,9 @@ func emitRunResult(
 		q.Restore()
 	}
 
+	if machineReadable {
+		fmt.Fprintln(os.Stderr, machineRunSummary(manifest, len(comments), ag.ToolCalls(), llmIdentity, duration, ag.SessionID()))
+	}
 	if !machineReadable {
 		telemetry.PrintTraceSummary(telemetry.TraceSummary{
 			FilesReviewed:     ag.FilesReviewed(),
