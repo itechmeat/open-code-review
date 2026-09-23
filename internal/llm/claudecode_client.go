@@ -42,6 +42,9 @@ var claudeCodeScrubbedEnv = []string{
 	"CLAUDE_CODE_CHILD_SESSION",
 	"CLAUDE_CODE_MESSAGING_SOCKET",
 	"CLAUDE_CODE_MESSAGING_TOKEN",
+	// Inside a cmux terminal its claude wrapper injects its own --session-id,
+	// hook settings and MCP server; without the surface id it passes through.
+	"CMUX_SURFACE_ID",
 }
 
 // claudeCodeDefaultTimeout bounds one request when the endpoint sets none.
@@ -162,7 +165,7 @@ func claudeCodeBinary() (string, error) {
 		}
 	} else {
 		var err error
-		if bin, err = exec.LookPath("claude"); err != nil {
+		if bin, err = lookPathSkippingShims("claude"); err != nil {
 			return "", fmt.Errorf("claude-code: claude CLI not found on PATH (install Claude Code or set %s): %w", envClaudeCodeBin, err)
 		}
 	}
@@ -173,6 +176,42 @@ func claudeCodeBinary() (string, error) {
 		return "", fmt.Errorf("claude-code: %s is a batch shim; install the native claude executable or point %s at it", bin, envClaudeCodeBin)
 	}
 	return bin, nil
+}
+
+// claudeCodeShimDirs are PATH entries that terminal integrations put ahead of
+// the real CLI to wrap interactive sessions; a headless run wants the CLI.
+var claudeCodeShimDirs = []string{"cmux-cli-shims"}
+
+// lookPathSkippingShims finds name on PATH, preferring the first match outside
+// a known shim directory and falling back to the shim when nothing else is
+// installed.
+func lookPathSkippingShims(name string) (string, error) {
+	var kept, shims []string
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		if dir == "" {
+			continue
+		}
+		shim := false
+		for _, marker := range claudeCodeShimDirs {
+			if strings.Contains(filepath.ToSlash(dir), "/"+marker) {
+				shim = true
+				break
+			}
+		}
+		if shim {
+			shims = append(shims, dir)
+		} else {
+			kept = append(kept, dir)
+		}
+	}
+	for _, dirs := range [][]string{kept, shims} {
+		for _, dir := range dirs {
+			if path, err := exec.LookPath(filepath.Join(dir, name)); err == nil {
+				return path, nil
+			}
+		}
+	}
+	return exec.LookPath(name)
 }
 
 func claudeCodeEnv(environ []string) []string {

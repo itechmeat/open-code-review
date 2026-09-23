@@ -221,7 +221,7 @@ func TestClaudeCodeEnv(t *testing.T) {
 		"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL",
 		"ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
 		"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
-		"CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
+		"CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CMUX_SURFACE_ID",
 	}
 	in := []string{"PATH=/bin", "ANTHROPIC_API_KEY_HELPER=keep"}
 	for _, k := range scrubbed {
@@ -326,5 +326,33 @@ func TestClaudeCodeClientProcessErrorNamesBinary(t *testing.T) {
 	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
 	if err == nil || !strings.Contains(err.Error(), os.Args[0]) {
 		t.Fatalf("err = %v, want the claude executable path in it", err)
+	}
+}
+
+func TestClaudeCodeBinarySkipsTerminalShims(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PATH shims are a Unix terminal-integration pattern")
+	}
+	root := t.TempDir()
+	shimDir := filepath.Join(root, "cmux-cli-shims", "0000")
+	realDir := filepath.Join(root, "bin")
+	for _, dir := range []string{shimDir, realDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "claude"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv(envClaudeCodeBin, "")
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+realDir)
+	got, err := claudeCodeBinary()
+	if err != nil || filepath.Dir(got) != realDir {
+		t.Fatalf("claudeCodeBinary() = %q, %v; want the claude in %s", got, err, realDir)
+	}
+
+	t.Setenv("PATH", shimDir)
+	if got, err := claudeCodeBinary(); err != nil || filepath.Dir(got) != shimDir {
+		t.Errorf("with only a shim on PATH it is still used: %q, %v", got, err)
 	}
 }
