@@ -37,6 +37,7 @@ type reviewOptions struct {
 	resume                string
 	excludes              string
 	paths                 string
+	noDedup               bool
 	outputFormat          string
 	audience              string
 	outputPath            string
@@ -268,6 +269,9 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	startTime := time.Now()
 
 	comments, runErr := ag.Run(runCtx)
+	if runErr == nil {
+		comments = dedupReviewComments(runCtx, rt.Client, rt.Model, cc.Template.CompletionTokenLimit(), comments, opts.noDedup)
+	}
 	manifest := ag.RunManifest()
 
 	// Freeze the retry report at the same boundary as the manifest: ag.Run has
