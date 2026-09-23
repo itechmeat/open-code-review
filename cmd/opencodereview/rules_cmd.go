@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 alibaba/open-code-review Contributors
+// Modified by Sergey Eroshenkov, 2026: claude-code provider.
 
 package main
 
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alibaba/open-code-review/internal/agent"
 	"github.com/alibaba/open-code-review/internal/config/rules"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +50,7 @@ func runRulesCheck(filePath string) error {
 		return err
 	}
 
-	resolver, _, err := rules.NewResolver(resolvedRepo, rulesCheckRulePath, rules.ResolverOptions{})
+	resolver, filter, err := rules.NewResolver(resolvedRepo, rulesCheckRulePath, rules.ResolverOptions{})
 	if err != nil {
 		return fmt.Errorf("load rules: %w", err)
 	}
@@ -73,10 +75,26 @@ func runRulesCheck(filePath string) error {
 	if detail.SniffedAs != "" {
 		fmt.Printf("Note:    rule selected by file content (%s), not by path alone\n", detail.SniffedAs)
 	}
+	fmt.Println(reviewSelectionLine(agent.PathSelection(filePath, filter)))
 	fmt.Println("Rule:")
 	fmt.Println(strings.Repeat("─", 40))
 	fmt.Println(detail.Rule)
 	fmt.Println(strings.Repeat("─", 40))
 
 	return nil
+}
+
+// reviewSelectionLine says whether review would pick the file up at all, so a
+// matching rule is not mistaken for a promise that the file gets reviewed.
+func reviewSelectionLine(reason agent.ExcludeReason) string {
+	switch reason {
+	case agent.ExcludeNone:
+		return "Review:  selected"
+	case agent.ExcludeDefaultPath, agent.ExcludeExtension:
+		return fmt.Sprintf("Review:  excluded (%s); list the path under \"include\" in a rule file (--rule, .opencodereview/rule.json) to review it", reason)
+	case agent.ExcludeUserRule:
+		return fmt.Sprintf("Review:  excluded (%s) by an \"exclude\" pattern in your rule files", reason)
+	default:
+		return fmt.Sprintf("Review:  excluded (%s)", reason)
+	}
 }
