@@ -227,6 +227,7 @@ func registerReviewFlags(cmd *cobra.Command, opts *reviewOptions) {
 	cmd.Flags().BoolVar(&opts.noFilter, "no-filter", false, "keep all review comments without LLM post-filtering")
 	cmd.Flags().IntVar(&opts.analysisMaxTokensBudget, "analysis-max-tokens-budget", 0, "cap total input and output tokens for Analysis only (0 = unlimited)")
 	cmd.Flags().BoolVar(&opts.analysis, "analysis", false, "include Behavior, Impact, and maintainer decisions (commit or range only; text/json); incomplete Analysis warns without changing the Review exit status")
+	cmd.Flags().BoolVar(&opts.allowPartial, "allow-partial", false, "exit 0 when some selected files failed but results were published (default: exit 3)")
 	addPreviewFlag(cmd, &opts.preview)
 }
 
