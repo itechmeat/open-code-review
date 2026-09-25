@@ -821,3 +821,81 @@ func TestBuildGrepArgs_NoIndex(t *testing.T) {
 	assertContains(t, args, "--exclude-standard")
 	assertNotContains(t, args, "--untracked")
 }
+
+func TestCodeSearchProvider_Execute_LiteralPipeFallsBackToAlternatives(t *testing.T) {
+	dir := setupTestRepo(t)
+	for _, tc := range []struct {
+		name string
+		ref  string
+	}{{"workspace", ""}, {"commit", getHeadCommit(t, dir)}} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewCodeSearch(&FileReader{RepoDir: dir, Ref: tc.ref, Mode: ModeWorkspace})
+			got, err := p.Execute(context.Background(), map[string]any{"search_text": "func Hello|func Util"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{"hello.go", "pkg/util.go", "use_perl_regexp", `"func Hello"`} {
+				if !strings.Contains(got, want) {
+					t.Errorf("result missing %q:\n%s", want, got)
+				}
+			}
+			if !strings.HasPrefix(got, "Note: ") {
+				t.Errorf("fallback must be labelled as such:\n%s", got)
+			}
+		})
+	}
+}
+
+func TestCodeSearchProvider_Execute_LiteralPipeNoMatchExplainsSemantics(t *testing.T) {
+	dir := setupTestRepo(t)
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeWorkspace})
+	got, err := p.Execute(context.Background(), map[string]any{"search_text": "nopeA|nopeB"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, "No matches found") || !strings.Contains(got, "use_perl_regexp") {
+		t.Fatalf("no-match result must explain the literal semantics, got: %s", got)
+	}
+}
+
+func TestCodeSearchProvider_Execute_LiteralPipeMatchIsKept(t *testing.T) {
+	dir := setupTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "pipe.sh"), []byte("cat a | grep b\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeWorkspace})
+	got, err := p.Execute(context.Background(), map[string]any{"search_text": "a | grep"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(got, "Note: ") || !strings.Contains(got, "pipe.sh") {
+		t.Fatalf("a literal '|' that matches must be returned as is, got: %s", got)
+	}
+}
+
+func TestCodeSearchProvider_Execute_PerlAlternationUntouched(t *testing.T) {
+	dir := setupTestRepo(t)
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeWorkspace})
+	got, err := p.Execute(context.Background(), map[string]any{"search_text": "nopeA|nopeB", "use_perl_regexp": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != noMatchesResult {
+		t.Fatalf("regex searches must not get the literal fallback, got: %s", got)
+	}
+}
+
+func TestLiteralAlternatives(t *testing.T) {
+	for in, want := range map[string][]string{
+		"a|b":   {"a", "b"},
+		"a||b":  {"a", "b"},
+		"a|":    nil,
+		"|":     nil,
+		"plain": nil,
+		"x | y": {"x ", " y"},
+	} {
+		if got := literalAlternatives(in); !slices.Equal(got, want) {
+			t.Errorf("literalAlternatives(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
