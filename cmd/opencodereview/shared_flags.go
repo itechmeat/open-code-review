@@ -51,6 +51,14 @@ func addExcludeFlag(cmd *cobra.Command, target *string) {
 
 const taskTimeoutHelp = "concurrent task budget in minutes, including LLM requests and retries (0 = unlimited); independent per-request timeout: OCR_LLM_TIMEOUT or provider timeout_sec in seconds (default 300)"
 
+// addIncludeFlags registers --include and --include-docs. Both only widen the
+// selection: an include admits files the extension allowlist and the default
+// path excludes would drop, while --exclude and secret paths still win.
+func addIncludeFlags(cmd *cobra.Command, includes *string, includeDocs *bool) {
+	cmd.Flags().StringVar(includes, "include", "", "comma-separated gitignore-style patterns to review even if their extension or path is filtered by default; merged with rule.json includes")
+	cmd.Flags().BoolVar(includeDocs, "include-docs", false, "also review documentation files ("+strings.Join(docsIncludePatterns, ", ")+"), checking their claims against the code")
+}
+
 func addConcurrencyFlags(cmd *cobra.Command, concurrency, timeout, maxTools, maxGitProcs, maxTokens, maxTokensBudget *int) {
 	cmd.Flags().IntVar(concurrency, "concurrency", 8, "max concurrent subtasks")
 	cmd.Flags().IntVar(timeout, "timeout", 15, taskTimeoutHelp)
@@ -209,6 +217,7 @@ func registerReviewFlags(cmd *cobra.Command, opts *reviewOptions) {
 	cmd.Flags().StringVar(&opts.resume, "resume", "", "resume from a previous review session id")
 	cmd.RegisterFlagCompletionFunc("resume", completeSessionIDs)
 	addExcludeFlag(cmd, &opts.excludes)
+	addIncludeFlags(cmd, &opts.includes, &opts.includeDocs)
 	addOutputFlags(cmd, &opts.outputFormat, &opts.audience)
 	addOutputPathFlag(cmd, &opts.outputPath)
 	addConcurrencyFlags(cmd, &opts.concurrency, &opts.concurrentTaskTimeout, &opts.maxTools, &opts.maxGitProcs, &opts.maxTokens, &opts.maxTokensBudget)
@@ -229,6 +238,7 @@ func registerScanFlags(cmd *cobra.Command, opts *scanOptions) {
 	addRepoFlag(cmd, &opts.repoDir)
 	cmd.Flags().StringVar(&opts.paths, "path", "", "comma-separated repo-relative directories or files to scan (default: whole repo)")
 	addExcludeFlag(cmd, &opts.excludes)
+	addIncludeFlags(cmd, &opts.includes, &opts.includeDocs)
 	addOutputFlags(cmd, &opts.outputFormat, &opts.audience)
 	addOutputPathFlag(cmd, &opts.outputPath)
 	cmd.Flags().IntVar(&opts.concurrency, "concurrency", 8, "max concurrent subtasks")

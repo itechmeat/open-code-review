@@ -176,6 +176,7 @@ Beyond the common flags above, `ocr review` exposes a few groups of controls. Ru
 **Scoping**
 
 - `--exclude '<patterns>'` — comma-separated gitignore-style patterns (for example `--exclude '**/generated/*,**/testdata/*'`), merged with `rule.json` excludes.
+- `--include '<patterns>'` / `--include-docs` — also review files filtered by default: `--include '**/*.bat'` admits any pattern, `--include-docs` admits Markdown and other docs so CHANGELOG entries and documented flags are checked against the code. `--exclude` still wins.
 - `--background-file <path>` — read review context from a Markdown file. Takes precedence over `--background`.
 
 **Output**
