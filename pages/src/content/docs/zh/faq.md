@@ -203,8 +203,11 @@ OCR 跳过该文件并继续——JSON 模式下你也会在 `warnings` 中看�
 
 两个常见原因：
 
-- **模型速率限制**——限流下 LLM client 退避并重试。调低 `--concurrency`
-  （如 `4`）以免一开始就触限。
+- **模型速率限制**——限流下 LLM client 退避并重试。没有 `Retry-After` 头的 `429`
+  约在 2、4、8、16、32 秒后重试（带抖动；服务端的 `Retry-After` 始终优先），
+  且收到 `429` 后 client 会暂时降低同时发出的 LLM 请求数，请求成功后再逐步恢复
+  （`[ocr] Provider rate limit hit; lowering concurrent LLM requests to N`）。
+  调低 `--concurrency`（如 `4`）以免一开始就触限。
 - **冷缓存**——若 provider 支持 prompt 缓存，部署后首次运行无法受益。同一窗口内
   后续运行更快。
 
