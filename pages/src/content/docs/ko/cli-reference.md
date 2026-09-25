@@ -114,6 +114,7 @@ ocr r      [flags]   (alias)
 | `--commit <sha>` | `-c` | — | 리뷰할 단일 커밋(부모 커밋과의 diff). |
 | `--preview` | `-p` | `false` | 필터 파이프라인만 돌리고 LLM은 호출하지 않습니다. 파일 목록과 제외 사유를 출력합니다. `--format json`은 지원하지만 `--format sarif`는 지원하지 않습니다(미리 보기에는 내보낼 완료된 지적이 없습니다). |
 | `--no-filter` | — | `false` | 리뷰 코멘트를 모두 남기고 서브태스크 단위 `REVIEW_FILTER_TASK` LLM 후처리 호출을 건너뜁니다. 서브태스크는 파일 하나 또는 관련된 파일 묶음을 리뷰합니다. |
+| `--allow-partial` | — | `false` | 결과는 출력됐지만 선택된 파일 일부가 실패했을 때 `3` 대신 `0`으로 끝냅니다. 부분 리뷰로 호출 쪽을 실패시키면 안 될 때 씁니다. |
 | `--resume <session-id>` | — | — | 호환되는 이전 range 또는 commit 리뷰 세션에서 이어서 실행합니다. |
 | `--format <fmt>` | `-f` | `text` | `text`(사람이 읽는 형식), `json`(기계가 읽는 코멘트 배열), `sarif`(GitHub Code Scanning용 SARIF 2.1.0 리포트). |
 | `--output <path>` | `-o` | stdout | 리뷰 결과를 UTF-8 파일로 씁니다(`-`는 stdout). 첫 쓰기 시점에 파일을 만들므로 실패한 실행은 기존 파일을 건드리지 않습니다. text 형식에서는 ANSI 색 코드를 자동으로 제거합니다. |
@@ -343,6 +344,7 @@ ocr review --format json | jq .summary   # stdout은 JSON 문서 하나입니다
 |---|---|
 | `0` | 리뷰가 끝났습니다(코멘트가 0건일 수도, 치명적이지 않은 경고가 있을 수도 있습니다). |
 | `1` | 치명적 오류입니다. 잘못된 플래그, LLM 엔드포인트 해석 실패, 그룹별 서브 Agent 전멸 등이며 오류 내용은 stderr에 출력됩니다. |
+| `3` | 부분 리뷰입니다. 결과(지적, `session_id`, 커버리지)는 출력됐지만 선택된 파일 일부가 실패했습니다(프로바이더 요청 한도, 타임아웃 등). stderr에 세션이 표시되며, 실패한 파일은 `ocr review --resume <session-id>`에 같은 `--from`/`--to`/`--commit`을 붙여 리뷰하세요. `--max-tokens-budget` 때문에만 건너뛴 파일은 세지 않고, `--allow-partial`을 주면 `0`이 됩니다. |
 
 치명적이지 않은 경고(서브 Agent 하나 실패, 파일이 토큰 한계 초과 등)는 실행 중간에
 출력되고, JSON 모드에서는 `warnings` 배열에 담깁니다.
