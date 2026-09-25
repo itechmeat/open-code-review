@@ -244,8 +244,13 @@ mode to see which groups failed.
 Two usual suspects:
 
 - **Model rate limits** — under throttling, the LLM client backs off
-  and retries. Lower `--concurrency` (e.g., to `4`) so you don't hit
-  the limit in the first place.
+  and retries. A `429` without a `Retry-After` header is retried after
+  roughly 2, 4, 8, 16 and 32 seconds (with jitter; a server `Retry-After`
+  always wins), and after a `429` the client temporarily lowers how many
+  LLM requests it sends at once, restoring the level as requests succeed
+  (`[ocr] Provider rate limit hit; lowering concurrent LLM requests to N`).
+  Lower `--concurrency` (e.g., to `4`) so you don't hit the limit in the
+  first place.
 - **Cold cache** — if your provider supports prompt caching, the first
   run after deploy doesn't benefit from it. Subsequent runs in the
   same window are faster.
