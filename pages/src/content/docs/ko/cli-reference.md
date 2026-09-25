@@ -71,6 +71,7 @@ ocr review --commit HEAD | gh issue comment 123 --body-file -
 | `ocr scan` | `ocr s` | Git diff 없이 파일 전체를 스캔합니다. |
 | `ocr rules check <file>` | — | 주어진 파일 경로에 어떤 규칙이 적용되는지, 그 규칙이 어디서 왔는지 보여줍니다. |
 | `ocr config set <key> <value>` | — | 설정값을 `~/.opencodereview/config.json`에 저장합니다. |
+| `ocr config get [key]` | — | 저장된 값을 출력합니다(`ocr config get provider`, `ocr config get model`). 비밀값은 가려집니다. 키를 생략하면 파일 전체를 출력합니다. |
 | `ocr config unset custom_providers.<name>` | — | 커스텀 프로바이더를 삭제합니다(활성 상태였다면 `provider`/`model`도 함께 지웁니다). |
 | `ocr config provider` | — | 대화형 프로바이더 설정 TUI입니다. |
 | `ocr config model` | — | 대화형 모델 선택 TUI입니다. |
@@ -558,10 +559,11 @@ Rule:
 ## `ocr config` {#ocr-config}
 
 키를 `~/.opencodereview/config.json`에 저장하고 대화형 설정 TUI를 제공합니다. 하위
-명령은 네 가지입니다:
+명령은 다섯 가지입니다:
 
 ```text
 ocr config set <key> <value>
+ocr config get [key]                       Print a saved value (secrets masked)
 ocr config unset <key>                     Clear a saved key
 ocr config provider                        Interactive provider setup
 ocr config model                           Interactive model selection
@@ -570,6 +572,7 @@ ocr config model                           Interactive model selection
 - **`set`** — 설정값 하나를 대화 없이 기록합니다. `effort`는 `low` / `medium` /
   `high`를 받아 모든 실행의 기본 리뷰 강도를 정하며, `--effort`가 실행 단위로 이를
   덮어씁니다.
+- **`get`** — `set`과 같은 점 구분 키(`provider`, `providers.<name>.model`, `llm.url` 등)로 저장된 값을 출력합니다. 문자열은 그대로, 객체는 JSON으로 출력하며, `model`은 활성 프로바이더의 모델을 알려 주고, 키를 생략하면 파일 전체를 출력합니다. API 키, 토큰, 토큰 성격의 헤더와 env 값은 항상 가려집니다. 설정되지 않은 키는 `1`로 끝납니다.
 - **`unset`** — 저장된 키를 지웁니다. `provider`, `max_tokens`, `effort`,
   `custom_providers.<name>`, `mcp_servers.<name>`을 지원합니다. `effort`를 지우면
   기본값인 `medium` 프리셋으로 돌아갑니다. 지운 프로바이더가 활성 상태였다면

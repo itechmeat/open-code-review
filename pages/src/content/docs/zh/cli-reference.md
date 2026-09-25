@@ -70,6 +70,7 @@ ocr review --commit HEAD | gh issue comment 123 --body-file -
 | `ocr scan` | `ocr s` | 无需 Git diff，扫描完整文件。 |
 | `ocr rules check <file>` | — | 显示某文件路径适用哪条规则及其来源。 |
 | `ocr config set <key> <value>` | — | 将一个配置值持久化到 `~/.opencodereview/config.json`。 |
+| `ocr config get [key]` | — | 打印已保存的值（`ocr config get provider`、`ocr config get model`）；密钥会被遮蔽。不带 key 时打印整个文件。 |
 | `ocr config unset <key>` | — | 清除一个已保存的配置值（`provider`、`max_tokens`、`effort`、`custom_providers.<name>`、`mcp_servers.<name>`）。 |
 | `ocr config provider` | — | 交互式 provider 配置 TUI。 |
 | `ocr config model` | — | 交互式 model 选择 TUI。 |
@@ -536,11 +537,12 @@ Rule:
 
 ## `ocr config`
 
-将 key 持久化到 `~/.opencodereview/config.json`，并提供交互式配置 TUI。四个
+将 key 持久化到 `~/.opencodereview/config.json`，并提供交互式配置 TUI。五个
 子命令：
 
 ```text
 ocr config set <key> <value>
+ocr config get [key]                       Print a saved value (secrets masked)
 ocr config unset <key>                     Clear a saved config value
 ocr config provider                        Interactive provider setup
 ocr config model                           Interactive model selection
@@ -548,6 +550,7 @@ ocr config model                           Interactive model selection
 
 - **`set`**——非交互式写入单个配置值（如
   `ocr config set effort high`）。
+- **`get`**——按 `set` 使用的点分 key（`provider`、`providers.<name>.model`、`llm.url` 等）打印已保存的值。字符串按纯文本输出，对象按 JSON 输出；`model` 给出当前 provider 的模型，不带 key 时打印整个文件。API key、token 以及类似 token 的 header 和 env 值始终被遮蔽。未设置的 key 以 `1` 退出。
 - **`unset`**——清除一个已保存的配置值。支持 `provider`、`max_tokens`、
   `effort`、`custom_providers.<name>` 和 `mcp_servers.<name>`。删除当前启用的
   自定义 provider 时，`provider` 和 `model` 一并被清空（运行

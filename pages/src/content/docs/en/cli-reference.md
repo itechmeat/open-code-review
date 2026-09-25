@@ -72,6 +72,7 @@ ocr review --commit HEAD | gh issue comment 123 --body-file -
 | `ocr scan` | `ocr s` | Scan complete files without requiring a Git diff. |
 | `ocr rules check <file>` | — | Show which rule applies to a given file path and where it came from. |
 | `ocr config set <key> <value>` | — | Persist a config value to `~/.opencodereview/config.json`. |
+| `ocr config get [key]` | — | Print a saved value (`ocr config get provider`, `ocr config get model`); secrets are masked. No key prints the whole file. |
 | `ocr config unset custom_providers.<name>` | — | Delete a custom provider (clears active `provider`/`model` if it was active). |
 | `ocr config provider` | — | Interactive provider-setup TUI. |
 | `ocr config model` | — | Interactive model-selection TUI. |
@@ -570,10 +571,11 @@ Useful for debugging "why isn't my custom rule firing?" — see
 ## `ocr config`
 
 Persists keys to `~/.opencodereview/config.json` and offers interactive
-setup TUIs. Four subcommands:
+setup TUIs. Five subcommands:
 
 ```text
 ocr config set <key> <value>
+ocr config get [key]                       Print a saved value (secrets masked)
 ocr config unset <key>                     Clear a saved key
 ocr config provider                        Interactive provider setup
 ocr config model                           Interactive model selection
@@ -582,6 +584,7 @@ ocr config model                           Interactive model selection
 - **`set`** — write a single config value non-interactively. `effort`
   accepts `low` / `medium` / `high` and sets the default review effort for
   every run; `--effort` overrides it per invocation.
+- **`get`** — print a saved value by the same dotted key `set` takes (`provider`, `providers.<name>.model`, `llm.url`, …). Strings print as plain text, objects as JSON; `model` reports the active provider's model, and with no key the whole file is printed. API keys, tokens and token-like headers or env values are always masked. A key that is not set exits `1`.
 - **`unset`** — clear a saved key. `provider`, `max_tokens`, `effort`,
   `custom_providers.<name>`, and `mcp_servers.<name>` are supported.
   Clearing `effort` restores the default `medium` preset. If a deleted
