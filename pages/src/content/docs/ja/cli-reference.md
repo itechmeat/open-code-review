@@ -70,6 +70,7 @@ ocr review --commit HEAD | gh issue comment 123 --body-file -
 | `ocr scan` | `ocr s` | Git diff を必要とせず、ファイル全体をスキャンします。 |
 | `ocr rules check <file>` | — | あるファイルパスにどのルールが適用され、その出所はどこかを表示します。 |
 | `ocr config set <key> <value>` | — | 設定値を `~/.opencodereview/config.json` に永続化します。 |
+| `ocr config get [key]` | — | 保存済みの値を表示します（`ocr config get provider`、`ocr config get model`）。シークレットはマスクされます。key を省略するとファイル全体を表示します。 |
 | `ocr config unset <key>` | — | 保存済みの設定値をクリアします（`provider`、`max_tokens`、`effort`、`custom_providers.<name>`、`mcp_servers.<name>`）。 |
 | `ocr config provider` | — | 対話的なプロバイダー設定 TUI。 |
 | `ocr config model` | — | 対話的な model 選択 TUI。 |
@@ -543,16 +544,18 @@ Rule:
 
 ## `ocr config`
 
-key を `~/.opencodereview/config.json` に永続化し、対話的な設定 TUI を提供します。4 つのサブコマンドがあります:
+key を `~/.opencodereview/config.json` に永続化し、対話的な設定 TUI を提供します。5 つのサブコマンドがあります:
 
 ```text
 ocr config set <key> <value>
+ocr config get [key]                       Print a saved value (secrets masked)
 ocr config unset <key>                     Clear a saved config value
 ocr config provider                        Interactive provider setup
 ocr config model                           Interactive model selection
 ```
 
 - **`set`**: 非対話的に単一の設定値を書き込みます（例: `ocr config set effort high`）。
+- **`get`**: `set` と同じドット区切りの key（`provider`、`providers.<name>.model`、`llm.url` など）で保存済みの値を表示します。文字列はそのまま、オブジェクトは JSON で出力します。`model` は有効なプロバイダーのモデルを返し、key を省略するとファイル全体を表示します。API キー、トークン、トークンに相当するヘッダーや env の値は常にマスクされます。未設定の key は `1` で終了します。
 - **`unset`**: 保存済みの設定値をクリアします。`provider`、`max_tokens`、`effort`、`custom_providers.<name>`、`mcp_servers.<name>` をサポートします。削除するものが現在有効なカスタムプロバイダーの場合、`provider` と `model` もクリアされます（`ocr config provider` を実行して再選択してください）。`ocr config unset effort` はデフォルトの `medium` プリセットに戻します。
 - **`provider`**: 対話的なプロバイダー設定 TUI を起動します（追加の引数なし。非対話的には `ocr config set provider <name>` を使用してください）。
 - **`model`**: 対話的な model 選択 TUI を起動します（追加の引数なし。非対話的には `ocr config set model <name>` を使用してください）。
