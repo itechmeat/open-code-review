@@ -193,11 +193,14 @@ OCR 跳过该文件并继续——JSON 模式下你也会在 `warnings` 中看�
 - 模型完全不支持原生工具调用（本地模型常见）——见
   ["No tool calls parsed"（本地模型 / Ollama）](#no-tool-calls-parsed-本地模型-ollama)。
 
-### 一些子 agent 失败；运行仍以 0 退出
+### 一些子 agent 失败；运行以 3 退出
 
-有意为之。OCR 隔离 per-file 失败，使一个有问题的文件不会拖垮 20 文件的评审。只要*有*
-成功的，聚合退出码就是 `0`；仅当完全失败（零成功子 agent）才非零退出。查看 JSON
-模式的 `warnings` 数组或文本模式的 stderr，看哪些文件失败了。
+OCR 隔离 per-file 失败，使一个有问题的文件不会拖垮 20 文件的评审：其他文件的发现照常
+输出。由于评审不完整，运行以 `3` 而不是 `0` 退出，并在 stderr 打印可续跑的会话：用
+`ocr review --resume <session-id>` 加相同的 `--from`/`--to`/`--commit` 只评审失败的文件。
+完全失败（零成功子 agent）以 `1` 退出。仅因 `--max-tokens-budget` 跳过的文件仍以 `0`
+退出，`--allow-partial` 可让任何部分评审恢复为 `0`。查看 JSON 模式的
+`manifest.coverage.failed` 或文本模式的 stderr，看哪些文件失败了。
 
 ### CI 运行比本地慢得多
 
