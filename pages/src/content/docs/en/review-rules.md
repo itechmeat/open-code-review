@@ -304,6 +304,7 @@ matching order:
 | `.github/workflows/**/*.{yaml,yml}` | `github_workflows.md` — GitHub Actions workflow YAML.                                                 |
 | `.github/**/*.{yaml,yml}`           | `github_config.md` — other `.github` config YAML.                                                     |
 | `**/*.{yaml,yml}`                   | `yaml.md`                                                                                             |
+| `**/*.{md,mdx,markdown,rst,adoc}` | `documentation.md` — Documentation, only when included (`--include-docs`): claims checked against the code. |
 | `**/*.java`                         | `java.md`                                                                                             |
 | `**/*.go`                           | `go.md` — Go source.                                                                                  |
 | `**/*.{ftl,ftlh,ftlx}`              | `freemarker.md` — FreeMarker templates (SSTI / XSS / null handling).                                  |

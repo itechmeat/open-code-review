@@ -35,6 +35,8 @@ type reviewOptions struct {
 	commit                string
 	resume                string
 	excludes              string
+	includes              string
+	includeDocs           bool
 	outputFormat          string
 	audience              string
 	outputPath            string
@@ -140,6 +142,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 		return err
 	}
 	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIIncludes(cc, splitPaths(opts.includes), opts.includeDocs)
 
 	// Security (#112): reject ref-option injection before any git invocation.
 	if err := validateReviewRefs(cc.RepoDir, opts); err != nil {
