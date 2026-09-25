@@ -60,9 +60,12 @@ func TestReviewE2E_RecoveredAndFailedReachesJSONExit(t *testing.T) {
 	out, errOut, err := runReviewCapturingBoth(t, repoDir, "json")
 	// One provider failure makes the review operationally incomplete even though
 	// the sibling succeeded. The partial JSON result must still be published
-	// before the command returns its non-zero status.
-	if err == nil || !strings.Contains(err.Error(), "1 of 4 selected item(s) failed") {
-		t.Fatalf("partial provider failure must exit non-zero with item counts: %v\nstderr: %s", err, errOut)
+	// before the command exits with the distinct partial status.
+	if err == nil || exitCodeFor(err) != exitPartial || !strings.Contains(err.Error(), "1 of 4 selected item(s) failed") {
+		t.Fatalf("partial provider failure must exit %d with item counts: %v\nstderr: %s", exitPartial, err, errOut)
+	}
+	if !strings.Contains(errOut, "--resume") {
+		t.Errorf("partial exit must tell the user how to resume:\n%s", errOut)
 	}
 
 	var got jsonOutput
@@ -139,8 +142,8 @@ func TestReviewE2E_RetryReportReachesTextExit(t *testing.T) {
 	startFakeLLM(t, srv)
 
 	out, errOut, err := runReviewCapturingBoth(t, repoDir, "text")
-	if err == nil || !strings.Contains(err.Error(), "1 of 4 selected item(s) failed") {
-		t.Fatalf("partial provider failure must exit non-zero with item counts: %v\nstderr: %s", err, errOut)
+	if err == nil || exitCodeFor(err) != exitPartial || !strings.Contains(err.Error(), "1 of 4 selected item(s) failed") {
+		t.Fatalf("partial provider failure must exit %d with item counts: %v\nstderr: %s", exitPartial, err, errOut)
 	}
 	// This test attributes a 429 and a 402 to named files, which only holds while
 	// each file is its own request — i.e. while the fake still answers the

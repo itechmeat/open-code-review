@@ -115,6 +115,7 @@ staged + unstaged + untracked changes in the current directory's repo.
 | `--commit <sha>` | `-c` | — | Single commit to review (vs its parent). |
 | `--preview` | `-p` | `false` | Run the filter pipeline but skip the LLM. Prints the file list and exclusion reasons. Honors `--format json`; `--format sarif` is not supported (a preview has no completed findings to emit). |
 | `--no-filter` | — | `false` | Keep all review comments and skip the per-subtask `REVIEW_FILTER_TASK` LLM post-processing call. A subtask reviews a single file or a bundle of related files. |
+| `--allow-partial` | — | `false` | Exit `0` instead of `3` when the review published results but some selected files failed. Use it where a partial review must not fail the caller. |
 | `--resume <session-id>` | — | — | Resume from a previous compatible range, commit, or workspace review session. |
 | `--format <fmt>` | `-f` | `text` | `text` (human-readable), `json` (machine-readable comment array), or `sarif` (SARIF 2.1.0 report for GitHub Code Scanning). |
 | `--output <path>` | `-o` | stdout | Write review results to a UTF-8 file (`-` means stdout). Lazily created on first write so failed runs leave existing files untouched. Text format automatically strips ANSI color codes. |
@@ -360,7 +361,8 @@ envelope instead so callers can distinguish "no changes" from "no findings":
 | Code | Meaning |
 |---|---|
 | `0` | Review completed or was skipped (possibly with zero comments or non-fatal warnings). A partial review caused only by configured budget limits also exits `0`. |
-| `1` | Fatal error, or an operational per-group failure such as a timeout, provider error, or bad configuration. The CLI emits available results before returning the error. |
+| `1` | Fatal error — bad flags, can't resolve LLM endpoint, all per-group sub-agents failed, etc. The error text is printed to stderr. |
+| `3` | Partial review — results (findings, `session_id`, coverage) were published, but some selected files failed, e.g. on provider rate limits or timeouts. stderr names the session; review the failed files with `ocr review --resume <session-id>` and the same `--from`/`--to`/`--commit`. Files skipped only by `--max-tokens-budget` do not count, and `--allow-partial` turns this into `0`. |
 
 Warnings are printed inline; in JSON mode they're added to the `warnings`
 array. Inspect `manifest.coverage.failed` for the affected files and their
