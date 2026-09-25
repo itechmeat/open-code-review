@@ -285,6 +285,7 @@ OCR은 [`bmatcuk/doublestar/v4`](https://pkg.go.dev/github.com/bmatcuk/doublesta
 | `.github/workflows/**/*.{yaml,yml}` | `github_workflows.md` — GitHub Actions 워크플로 YAML.                            |
 | `.github/**/*.{yaml,yml}`           | `github_config.md` — 그 밖의 `.github` 설정 YAML.                                |
 | `**/*.{yaml,yml}`                   | `yaml.md`                                                                        |
+| `**/*.{md,mdx,markdown,rst,adoc}` | `documentation.md` — 문서. 포함했을 때만(`--include-docs`): 적힌 내용을 코드와 대조합니다. |
 | `**/*.java`                         | `java.md`                                                                        |
 | `**/*.go`                           | `go.md` — Go 소스.                                                               |
 | `**/*.{ftl,ftlh,ftlx}`              | `freemarker.md` — FreeMarker 템플릿(SSTI / XSS / null 처리).                     |

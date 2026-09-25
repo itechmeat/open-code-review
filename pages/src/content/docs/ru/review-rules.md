@@ -303,6 +303,7 @@ OCR использует [`bmatcuk/doublestar/v4`](https://pkg.go.dev/github.com
 | `.github/workflows/**/*.{yaml,yml}` | `github_workflows.md` — YAML workflow GitHub Actions.                                            |
 | `.github/**/*.{yaml,yml}`           | `github_config.md` — прочий конфигурационный YAML `.github`.                                     |
 | `**/*.{yaml,yml}`                   | `yaml.md`                                                                                        |
+| `**/*.{md,mdx,markdown,rst,adoc}` | `documentation.md` — Документация, только если включена (`--include-docs`): утверждения сверяются с кодом. |
 | `**/*.java`                         | `java.md`                                                                                        |
 | `**/*.go`                           | `go.md` — исходный код Go.                                                                       |
 | `**/*.{ftl,ftlh,ftlx}`              | `freemarker.md` — шаблоны FreeMarker (SSTI / XSS / обработка null).                              |

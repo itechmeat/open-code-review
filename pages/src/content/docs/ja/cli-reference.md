@@ -117,6 +117,8 @@ ocr r      [flags]   (alias)
 | `--background <text>` | `-b` | — | plan + main prompt に注入する、任意の要件 / 業務コンテキスト。 |
 | `--background-file <path>` | `-B` | — | レビューの背景として使用する Markdown ファイルのパス。`--background` も指定した場合は両方を結合します。 |
 | `--exclude <patterns>` | — | — | 除外する gitignore 形式のパターン（カンマ区切り）。`rule.json` の excludes とマージされます。 |
+| `--include <patterns>` | — | — | 既定ではフィルタされる拡張子やパスでもレビュー対象にする gitignore 形式のパターン（カンマ区切り、例: `**/*.bat`）。`rule.json` の include とマージされます。`--exclude` が優先します。 |
+| `--include-docs` | — | `false` | ドキュメントファイル（`**/*.{md,mdx,markdown,rst,adoc}`）も組み込みの `documentation.md` ルールでレビューします。文体ではなく、CHANGELOG の項目や記載されたフラグ・パス・例をコードと照合します。既定ではオフです。 |
 | `--concurrency <n>` | — | `8` | 並行してレビューするサブタスクの最大数。 |
 | `--timeout <minutes>` | — | `15` | サブタスクごとの締め切り時間。`0` でタイムアウトを無効化します。effort ラウンド数に応じて線形にスケールします（例: low/medium/high で 15/30/45 分）。 |
 | `--rule <path>` | — | — | カスタム JSON レビュールールファイルのパス。プロジェクトレベルおよびグローバルの `rule.json` を上書きします。 |
@@ -351,6 +353,8 @@ ocr s      [flags]   (alias)
 |---|---|---|---|
 | `--path <list>` | - | リポジトリ全体 | スキャン対象のリポジトリ相対ディレクトリまたはファイル（カンマ区切り、例: `internal/agent`、`internal/llm/client.go`）。 |
 | `--exclude <patterns>` | - | - | 除外する gitignore 形式のパターン（カンマ区切り、例: `**/generated/*,*.pb.go`）。`rule.json` の excludes とマージされます。 |
+| `--include <patterns>` | - | - | 既定ではフィルタされる拡張子やパスでもレビュー対象にする gitignore 形式のパターン（カンマ区切り、例: `**/*.bat`）。`rule.json` の include とマージされます。`--exclude` が優先します。 |
+| `--include-docs` | - | `false` | ドキュメントファイル（`**/*.{md,mdx,markdown,rst,adoc}`）も組み込みの `documentation.md` ルールでレビューします。文体ではなく、CHANGELOG の項目や記載されたフラグ・パス・例をコードと照合します。既定ではオフです。 |
 | `--output <path>` | `-o` | 標準出力 | スキャン結果を UTF-8 ファイルに書き込みます（`-` は標準出力を表します）。初回書き込み時に遅延作成されるため、実行が失敗しても既存のファイルは変更されません。テキスト形式では ANSI カラーコードが自動的に削除されます。 |
 | `--preview` | `-p` | `false` | LLM を呼び出さずにファイルを列挙・フィルタリングします。ファイルリスト、レビュー対象/除外数、総行数、ファイルごとの除外理由を出力します。`--format json` に対応しています。`--format sarif` はサポートされていません。 |
 

@@ -123,6 +123,8 @@ staged + unstaged + untracked changes in the current directory's repo.
 | `--background <text>` | `-b` | — | Optional requirement / business context injected into the plan + main prompts. |
 | `--background-file <path>` | `-B` | — | Path to a Markdown file used as review background. Takes precedence over `--background` when both are set. |
 | `--exclude <patterns>` | — | — | Comma-separated gitignore-style patterns to exclude; merged with the `excludes` section of `rule.json` |
+| `--include <patterns>` | — | — | Comma-separated gitignore-style patterns to review even when their extension or path is filtered by default (e.g., `**/*.bat`); merged with the `include` section of `rule.json`. `--exclude` still wins. |
+| `--include-docs` | — | `false` | Also review documentation files (`**/*.{md,mdx,markdown,rst,adoc}`) with the built-in `documentation.md` rule, which checks CHANGELOG entries, documented flags, paths and examples against the code rather than prose style. Off by default. |
 | `--concurrency <n>` | — | `8` | Maximum number of subtasks reviewed in parallel. |
 | `--timeout <minutes>` | — | `15` | Per-subtask deadline. `0` disables the timeout. Scaled linearly by the number of effort review rounds (e.g. 15/30/45 min for low/medium/high). |
 | `--effort <level>` | — | `medium` | Review effort preset: `low` (1 review round), `medium` (2 rounds), `high` (3 rounds). More rounds improve recall at proportionally higher cost. Overrides the saved `effort` setting for this run. |
@@ -375,6 +377,8 @@ With no `--path`, the whole repository is scanned.
 |---|---|---|---|
 | `--path <list>` | - | whole repo | Comma-separated repo-relative directories or files to scan (e.g., `internal/agent`, `internal/llm/client.go`). |
 | `--exclude <patterns>` | - | - | Comma-separated gitignore-style patterns to skip (e.g., `**/generated/*,*.pb.go`); merged with `rule.json` excludes. |
+| `--include <patterns>` | - | - | Comma-separated gitignore-style patterns to review even when their extension or path is filtered by default (e.g., `**/*.bat`); merged with the `include` section of `rule.json`. `--exclude` still wins. |
+| `--include-docs` | - | `false` | Also review documentation files (`**/*.{md,mdx,markdown,rst,adoc}`) with the built-in `documentation.md` rule, which checks CHANGELOG entries, documented flags, paths and examples against the code rather than prose style. Off by default. |
 | `--output <path>` | `-o` | stdout | Write scan results to a UTF-8 file (`-` means stdout). Lazily created on first write so failed runs leave existing files untouched. Text format automatically strips ANSI color codes. |
 | `--preview` | `-p` | `false` | Enumerate and filter files without calling the LLM. Prints the file list, reviewable/excluded counts, total lines, and per-file exclusion reasons. Honors `--format json`; `--format sarif` is not supported. |
 

@@ -122,6 +122,8 @@ ocr r      [flags]   (alias)
 | `--background <text>` | `-b` | — | plan과 main 프롬프트에 넣을 요구사항 또는 비즈니스 맥락(선택). |
 | `--background-file <path>` | `-B` | — | 리뷰 배경으로 쓸 Markdown 파일 경로. `--background`와 함께 지정하면 이쪽이 우선합니다. |
 | `--exclude <patterns>` | — | — | 제외할 gitignore 형식 패턴(쉼표 구분). `rule.json`의 `excludes` 항목과 합쳐집니다. |
+| `--include <patterns>` | — | — | 확장자나 경로가 기본으로 걸러지는 파일도 리뷰할 gitignore 형식 패턴(쉼표 구분, 예: `**/*.bat`). `rule.json`의 include와 합쳐집니다. `--exclude`가 여전히 우선합니다. |
+| `--include-docs` | — | `false` | 문서 파일(`**/*.{md,mdx,markdown,rst,adoc}`)도 내장 `documentation.md` 규칙으로 리뷰합니다. 문체가 아니라 CHANGELOG 항목과 문서에 적힌 플래그, 경로, 예제를 코드와 대조합니다. 기본값은 꺼짐입니다. |
 | `--concurrency <n>` | — | `8` | 병렬로 리뷰할 서브태스크의 최대 개수. |
 | `--timeout <minutes>` | — | `15` | 서브태스크당 제한 시간. `0`이면 타임아웃을 끕니다. effort 라운드 수에 비례해 선형 확장됩니다(예: low/medium/high에서 15/30/45분). |
 | `--effort <level>` | — | `medium` | 리뷰 강도 프리셋: `low`(라운드 1회), `medium`(2회), `high`(3회). 라운드를 늘리면 놓치는 지적이 줄지만 비용도 그만큼 늘어납니다. 이 실행에 한해 저장된 `effort` 설정을 덮어씁니다. |
@@ -368,6 +370,8 @@ ocr s      [flags]   (alias)
 |---|---|---|---|
 | `--path <list>` | - | 저장소 전체 | 스캔할 저장소 기준 상대 디렉터리나 파일(쉼표 구분). 예: `internal/agent`, `internal/llm/client.go`. |
 | `--exclude <patterns>` | - | - | 건너뛸 gitignore 형식 패턴(쉼표 구분). 예: `**/generated/*,*.pb.go`. `rule.json`의 excludes와 합쳐집니다. |
+| `--include <patterns>` | - | - | 확장자나 경로가 기본으로 걸러지는 파일도 리뷰할 gitignore 형식 패턴(쉼표 구분, 예: `**/*.bat`). `rule.json`의 include와 합쳐집니다. `--exclude`가 여전히 우선합니다. |
+| `--include-docs` | - | `false` | 문서 파일(`**/*.{md,mdx,markdown,rst,adoc}`)도 내장 `documentation.md` 규칙으로 리뷰합니다. 문체가 아니라 CHANGELOG 항목과 문서에 적힌 플래그, 경로, 예제를 코드와 대조합니다. 기본값은 꺼짐입니다. |
 | `--output <path>` | `-o` | stdout | 스캔 결과를 UTF-8 파일로 씁니다(`-`는 stdout). 첫 쓰기 시점에 파일을 만들므로 실패한 실행은 기존 파일을 건드리지 않습니다. text 형식에서는 ANSI 색 코드를 자동으로 제거합니다. |
 | `--preview` | `-p` | `false` | LLM을 호출하지 않고 파일을 나열하고 필터링합니다. 파일 목록, 리뷰 대상과 제외 대상 개수, 전체 라인 수, 파일별 제외 사유를 출력합니다. `--format json`은 지원하지만 `--format sarif`는 지원하지 않습니다. |
 

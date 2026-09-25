@@ -240,6 +240,7 @@ OCR は [`bmatcuk/doublestar/v4`](https://pkg.go.dev/github.com/bmatcuk/doublest
 | `.github/workflows/**/*.{yaml,yml}` | `github_workflows.md`: GitHub Actions ワークフロー YAML。                                       |
 | `.github/**/*.{yaml,yml}`           | `github_config.md`: その他の `.github` 設定 YAML。                                              |
 | `**/*.{yaml,yml}`                   | `yaml.md`                                                                                       |
+| `**/*.{md,mdx,markdown,rst,adoc}` | `documentation.md` — ドキュメント。含めた場合のみ（`--include-docs`）：記述をコードと照合します。 |
 | `**/*.java`                         | `java.md`                                                                                       |
 | `**/*.go`                           | `go.md`: Go ソースコード。                                                                      |
 | `**/*.{ftl,ftlh,ftlx}`              | `freemarker.md`: FreeMarker テンプレート（SSTI / XSS / null 処理）。                            |
