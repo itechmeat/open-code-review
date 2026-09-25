@@ -71,6 +71,7 @@ ocr review --commit HEAD | gh issue comment 123 --body-file -
 | `ocr review` | `ocr r` | Запускает код-ревью и выводит комментарии. |
 | `ocr rules check <file>` | — | Показывает, какое правило применяется к указанному пути файла и откуда оно получено. |
 | `ocr config set <key> <value>` | — | Сохраняет значение конфигурации в `~/.opencodereview/config.json`. |
+| `ocr config get [key]` | — | Выводит сохранённое значение (`ocr config get provider`, `ocr config get model`); секреты маскируются. Без ключа выводит весь файл. |
 | `ocr config unset <key>` | — | Сбрасывает сохранённое значение конфигурации (`provider`, `max_tokens`, `effort`, `custom_providers.<name>`, `mcp_servers.<name>`). |
 | `ocr config provider` | — | Интерактивный TUI для настройки провайдера. |
 | `ocr config model` | — | Интерактивный TUI для выбора модели. |
@@ -553,10 +554,11 @@ Rule:
 ## `ocr config`
 
 Сохраняет ключи в `~/.opencodereview/config.json` и предоставляет
-интерактивные TUI для настройки. Доступны четыре подкоманды:
+интерактивные TUI для настройки. Доступны пять подкоманд:
 
 ```text
 ocr config set <key> <value>
+ocr config get [key]                       Print a saved value (secrets masked)
 ocr config unset <key>                     Clear a saved config value
 ocr config provider                        Interactive provider setup
 ocr config model                           Interactive model selection
@@ -564,6 +566,7 @@ ocr config model                           Interactive model selection
 
 - **`set`** — записывает одно значение конфигурации неинтерактивно
   (например, `ocr config set effort high`).
+- **`get`** — выводит сохранённое значение по тому же ключу через точку, что и `set` (`provider`, `providers.<name>.model`, `llm.url`, …). Строки выводятся как текст, объекты — как JSON; `model` показывает модель активного провайдера, а без ключа выводится весь файл. API-ключи, токены и похожие на токены заголовки и значения env всегда маскируются. Для незаданного ключа код завершения `1`.
 - **`unset`** — сбрасывает сохранённое значение конфигурации. Поддерживаются
   `provider`, `max_tokens`, `effort`, `custom_providers.<name>` и
   `mcp_servers.<name>`. Если удалённый пользовательский провайдер был активным,
