@@ -29,6 +29,8 @@ type scanOptions struct {
 	repoDir               string
 	paths                 string
 	excludes              string
+	includes              string
+	includeDocs           bool
 	outputFormat          string
 	audience              string
 	outputPath            string
@@ -127,6 +129,7 @@ func executeScanContext(ctx context.Context, opts scanOptions) (retErr error) {
 		return err
 	}
 	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIIncludes(cc, splitPaths(opts.includes), opts.includeDocs)
 
 	// scan owns its own template (scan_template.json) independent from the
 	// diff-review template loaded by loadCommonContext above. Apply --max-tools

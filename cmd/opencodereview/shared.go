@@ -335,6 +335,26 @@ func applyCLIExcludes(cc *commonContext, patterns []string) {
 	cc.FileFilter.Exclude = append(cc.FileFilter.Exclude, patterns...)
 }
 
+// docsIncludePatterns are the documentation files --include-docs admits. They
+// are filtered by default because prose review is noisy; opted in, the
+// documentation rule has the model check their claims against the code.
+var docsIncludePatterns = []string{"**/*.{md,mdx,markdown,rst,adoc}"}
+
+// applyCLIIncludes merges --include patterns, plus the documentation patterns
+// when includeDocs is set, into the file filter's includes.
+func applyCLIIncludes(cc *commonContext, patterns []string, includeDocs bool) {
+	if includeDocs {
+		patterns = append(patterns, docsIncludePatterns...)
+	}
+	if len(patterns) == 0 {
+		return
+	}
+	if cc.FileFilter == nil {
+		cc.FileFilter = &rules.FileFilter{}
+	}
+	cc.FileFilter.Include = append(cc.FileFilter.Include, patterns...)
+}
+
 func loadToolDefs(names []string) ([]llm.ToolDef, error) {
 	entries, err := toolsconfig.LoadDefault()
 	if err != nil {
