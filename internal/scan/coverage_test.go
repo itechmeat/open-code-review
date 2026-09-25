@@ -202,6 +202,18 @@ func TestWhyExcluded_AllBranches(t *testing.T) {
 			want:   model.ExcludeNone,
 		},
 		{
+			name:   "extra extension passes the allowlist",
+			item:   model.ScanItem{Path: "docs/guide.md", Content: "x"},
+			filter: &rules.FileFilter{ExtraExts: []string{".md"}},
+			want:   model.ExcludeNone,
+		},
+		{
+			name:   "extra extension keeps default path excludes",
+			item:   model.ScanItem{Path: "vendor/lib/README.md", Content: "x"},
+			filter: &rules.FileFilter{ExtraExts: []string{".md"}},
+			want:   model.ExcludeDefaultPath,
+		},
+		{
 			name: "default excluded path",
 			item: model.ScanItem{Path: "pkg/handler_test.go", Content: "x"},
 			want: model.ExcludeDefaultPath,

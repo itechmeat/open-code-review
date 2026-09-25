@@ -90,7 +90,7 @@ func (a *Agent) whyExcluded(d model.Diff) ExcludeReason {
 	}
 
 	ext := a.extFromPath(path)
-	if ext != "" && !allowedext.IsAllowedExt(ext) {
+	if ext != "" && !allowedext.IsAllowedExt(ext) && !f.AllowsExt(ext) {
 		return ExcludeExtension
 	}
 

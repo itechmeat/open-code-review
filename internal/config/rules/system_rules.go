@@ -221,11 +221,28 @@ type ProjectRule struct {
 type FileFilter struct {
 	Include []string
 	Exclude []string
+	// ExtraExts widens only the extension allowlist, unlike Include, so the
+	// default path excludes (vendor/, node_modules/, testdata/) still apply.
+	ExtraExts []string
 }
 
 // HasInclude reports whether any include patterns are configured.
 func (f *FileFilter) HasInclude() bool {
 	return len(f.Include) > 0
+}
+
+// AllowsExt reports whether ext (with its leading dot) is one of ExtraExts.
+// The check is case-insensitive and safe on a nil filter.
+func (f *FileFilter) AllowsExt(ext string) bool {
+	if f == nil {
+		return false
+	}
+	for _, e := range f.ExtraExts {
+		if strings.EqualFold(e, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsUserExcluded reports whether the given path matches any user exclude pattern.

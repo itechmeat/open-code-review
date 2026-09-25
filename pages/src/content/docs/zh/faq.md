@@ -101,7 +101,7 @@ imgs/logo.png           binary    (excluded: unsupported_ext)
 |---|---|
 | `binary` | 无需处理——二进制文件无可评审文本。 |
 | `user_exclude` | 从你的 `exclude` 列表移除该模式。 |
-| `unsupported_ext` | 把扩展名加入你的 `include` 列表以绕过白名单门。 |
+| `unsupported_ext` | 把扩展名加入你的 `include` 列表以绕过白名单门。只针对单次运行时，可传 `--include '<glob>'`；Markdown 等文档可用 `--include-docs`。 |
 | `default_path` | 把文件加入 `include`——那会覆盖内置测试文件排除模式。 |
 | `provider_directory` | 无需操作——`vendor/`、`node_modules/` 等 provider 目录永远不可评审，即使被 `include` 匹配也是如此。 |
 | `deleted` | 无需处理——没有新内容可评审。 |

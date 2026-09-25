@@ -27,7 +27,7 @@ A skill for performing AI code review where OCR provides deterministic engineeri
 ### Step 1: Preview — Determine What to Review
 
 ```bash
-ocr delegate preview --format json [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview --format json [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 This outputs:
@@ -136,6 +136,8 @@ If the user requested "review and fix":
 | `--repo <path>` | Repository root (default: cwd) |
 | `--rule <path>` | Custom rule.json path |
 | `--exclude <patterns>` | Comma-separated exclude patterns |
+| `--include <patterns>` | Comma-separated patterns to review even when their extension or path is filtered by default |
+| `--include-docs` | Also review `.md`, `.mdx`, `.markdown`, `.rst` and `.adoc` files (default path excludes still apply) |
 | `-b, --background <text>` | Business context |
 | `-B, --background-file <path>` | Business context from Markdown file (takes precedence over `-b`) |
 | `-f, --format <text\|json>` | Output format; use `json` for agent integrations |

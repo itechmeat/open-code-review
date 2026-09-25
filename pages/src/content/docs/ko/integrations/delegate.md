@@ -62,7 +62,7 @@ cp -R /path/to/open-code-review/skills/open-code-review-delegate ~/.claude/skill
 ### 1단계: 미리 보기 — 리뷰 대상 확인 {#step-1-preview-determine-what-to-review}
 
 ```bash
-ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 출력 내용:
@@ -142,6 +142,8 @@ cat <path>                     # 새로 추가된 추적되지 않은 파일
 | `--repo <path>` | 저장소 루트(기본값: 현재 디렉터리) |
 | `--rule <path>` | 커스텀 rule.json 경로 |
 | `--exclude <patterns>` | 쉼표로 구분한 제외 패턴 |
+| `--include <patterns>` | 확장자나 경로가 기본으로 걸러져도 리뷰할 쉼표 구분 패턴 |
+| `--include-docs` | `.md`, `.mdx`, `.markdown`, `.rst`, `.adoc` 파일도 리뷰합니다(기본 경로 제외는 그대로 적용) |
 | `-b, --background <text>` | 비즈니스 맥락 |
 | `-B, --background-file <path>` | Markdown 파일에서 읽는 비즈니스 맥락(`-b`보다 우선) |
 

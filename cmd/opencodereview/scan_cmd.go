@@ -30,6 +30,8 @@ type scanOptions struct {
 	repoDir               string
 	paths                 string
 	excludes              string
+	includes              string
+	includeDocs           bool
 	outputFormat          string
 	audience              string
 	outputPath            string
@@ -108,6 +110,36 @@ func splitPaths(raw string) []string {
 	return out
 }
 
+// splitPatterns splits a comma-separated glob list like splitPaths, but keeps
+// commas inside {a,b} brace lists, which the include/exclude matchers expand.
+func splitPatterns(raw string) []string {
+	var out []string
+	depth, start := 0, 0
+	for i, r := range raw {
+		switch r {
+		case '{':
+			depth++
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				out = appendTrimmed(out, raw[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return appendTrimmed(out, raw[start:])
+}
+
+func appendTrimmed(out []string, s string) []string {
+	if s = strings.TrimSpace(s); s != "" {
+		out = append(out, s)
+	}
+	return out
+}
+
 func executeScan(opts scanOptions) (retErr error) {
 	out, closeOut, err := resolveOutputWriter(opts.outputPath, opts.outputFormat)
 	if err != nil {
@@ -123,7 +155,8 @@ func executeScan(opts scanOptions) (retErr error) {
 	if err != nil {
 		return err
 	}
-	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIExcludes(cc, splitPatterns(opts.excludes))
+	applyCLIIncludes(cc, splitPatterns(opts.includes), opts.includeDocs)
 
 	// scan owns its own template (scan_template.json) independent from the
 	// diff-review template loaded by loadCommonContext above. Apply --max-tools

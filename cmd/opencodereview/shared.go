@@ -346,6 +346,27 @@ func applyCLIExcludes(cc *commonContext, patterns []string) {
 	cc.FileFilter.Exclude = append(cc.FileFilter.Exclude, patterns...)
 }
 
+// docsExts are the documentation extensions --include-docs admits. They are
+// filtered by default because prose review is noisy; opted in, the
+// documentation rule has the model check their claims against the code.
+var docsExts = []string{".md", ".mdx", ".markdown", ".rst", ".adoc"}
+
+// applyCLIIncludes merges --include patterns into the file filter's includes.
+// includeDocs admits docsExts through the extension allowlist only, so docs
+// under vendor/, node_modules/ or testdata/ stay excluded as usual.
+func applyCLIIncludes(cc *commonContext, patterns []string, includeDocs bool) {
+	if len(patterns) == 0 && !includeDocs {
+		return
+	}
+	if cc.FileFilter == nil {
+		cc.FileFilter = &rules.FileFilter{}
+	}
+	cc.FileFilter.Include = append(cc.FileFilter.Include, patterns...)
+	if includeDocs {
+		cc.FileFilter.ExtraExts = append(cc.FileFilter.ExtraExts, docsExts...)
+	}
+}
+
 // excludeToolDef returns a copy of defs with any entries whose function name
 // matches name removed. Used by `ocr scan` to hide tools that don't make
 // sense in full-scan mode (e.g. file_read_diff).

@@ -53,7 +53,7 @@ cp -R /path/to/open-code-review/skills/open-code-review-delegate ~/.claude/skill
 ### ステップ 1：Preview — レビュー対象の決定
 
 ```bash
-ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 出力内容：
@@ -132,6 +132,8 @@ cat <path>                     # 新規未追跡ファイル
 | `--repo <path>` | リポジトリルート（デフォルト：cwd） |
 | `--rule <path>` | カスタム rule.json パス |
 | `--exclude <patterns>` | カンマ区切りの除外パターン |
+| `--include <patterns>` | 既定ではフィルタされる拡張子やパスでもレビュー対象にするカンマ区切りのパターン |
+| `--include-docs` | `.md`、`.mdx`、`.markdown`、`.rst`、`.adoc` ファイルもレビューします（既定のパス除外は引き続き適用） |
 | `-b, --background <text>` | ビジネスコンテキスト |
 | `-B, --background-file <path>` | Markdown ファイルからビジネスコンテキストを読み込み（`-b` より優先） |
 

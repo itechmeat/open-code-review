@@ -75,6 +75,13 @@ func TestRuleConfigSHA256(t *testing.T) {
 	if a.ruleConfigSHA256() == withFilter.ruleConfigSHA256() {
 		t.Error("adding a file filter did not change rule_config_sha256")
 	}
+	withDocs := New(Args{
+		SystemRule: base,
+		FileFilter: &rules.FileFilter{Include: []string{"*.go"}, Exclude: []string{"vendor/**"}, ExtraExts: []string{".md"}},
+	})
+	if withFilter.ruleConfigSHA256() == withDocs.ruleConfigSHA256() {
+		t.Error("admitting extra extensions did not change rule_config_sha256")
+	}
 }
 
 func TestRuleConfigSHA256_NilResolverAndFilter(t *testing.T) {

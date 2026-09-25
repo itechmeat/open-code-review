@@ -53,7 +53,7 @@ cp -R /path/to/open-code-review/skills/open-code-review-delegate ~/.claude/skill
 ### 第 1 步：Preview — 确定审查范围
 
 ```bash
-ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 输出内容：
@@ -132,6 +132,8 @@ cat <path>                     # 新的未跟踪文件
 | `--repo <path>` | 仓库根目录（默认：cwd） |
 | `--rule <path>` | 自定义 rule.json 路径 |
 | `--exclude <patterns>` | 逗号分隔的排除模式 |
+| `--include <patterns>` | 逗号分隔的模式，即使扩展名或路径默认被过滤也会评审 |
+| `--include-docs` | 同时评审 `.md`、`.mdx`、`.markdown`、`.rst` 和 `.adoc` 文件（默认路径排除仍然生效） |
 | `-b, --background <text>` | 业务上下文 |
 | `-B, --background-file <path>` | 从 Markdown 文件读取业务上下文（优先于 `-b`） |
 

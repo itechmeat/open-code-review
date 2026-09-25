@@ -65,7 +65,7 @@ cp -R /path/to/open-code-review/skills/open-code-review-delegate ~/.claude/skill
 ### Step 1: Preview — determine what to review
 
 ```bash
-ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 Outputs:
@@ -146,6 +146,8 @@ Classify each finding by severity:
 | `--repo <path>` | Repository root (default: cwd) |
 | `--rule <path>` | Custom rule.json path |
 | `--exclude <patterns>` | Comma-separated exclude patterns |
+| `--include <patterns>` | Comma-separated patterns to review even when their extension or path is filtered by default |
+| `--include-docs` | Also review `.md`, `.mdx`, `.markdown`, `.rst` and `.adoc` files (default path excludes still apply) |
 | `-b, --background <text>` | Business context |
 | `-B, --background-file <path>` | Business context from Markdown file (takes precedence over `-b`) |
 

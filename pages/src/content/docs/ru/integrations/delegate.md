@@ -63,7 +63,7 @@ cp -R /path/to/open-code-review/skills/open-code-review-delegate ~/.claude/skill
 ### Шаг 1. Предварительный просмотр — определить, что проверять
 
 ```bash
-ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>]
+ocr delegate preview [--from <ref> --to <ref>] [--commit <hash>] [--exclude <patterns>] [--include <patterns>] [--include-docs]
 ```
 
 Вывод содержит:
@@ -144,6 +144,8 @@ cat <path>                     # new untracked files
 | `--repo <path>` | Корень репозитория (по умолчанию текущий рабочий каталог). |
 | `--rule <path>` | Путь к пользовательскому rule.json. |
 | `--exclude <patterns>` | Разделённые запятыми шаблоны исключения. |
+| `--include <patterns>` | Разделённые запятыми шаблоны файлов, которые нужно проверить, даже если их расширение или путь отфильтрованы по умолчанию. |
+| `--include-docs` | Проверять также файлы `.md`, `.mdx`, `.markdown`, `.rst` и `.adoc` (встроенные исключения путей по-прежнему действуют). |
 | `-b, --background <text>` | Бизнес-контекст. |
 | `-B, --background-file <path>` | Бизнес-контекст из файла Markdown (приоритет над `-b`). |
 

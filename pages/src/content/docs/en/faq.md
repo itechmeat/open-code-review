@@ -112,7 +112,7 @@ The exclusion reasons map to gates in the
 |---|---|
 | `binary` | Nothing to do — binary files have no reviewable text. |
 | `user_exclude` | Remove the pattern from your `exclude` list. |
-| `unsupported_ext` | Add the extension to your `include` list to bypass the allowlist gate. |
+| `unsupported_ext` | Add the extension to your `include` list to bypass the allowlist gate. For a single run, pass `--include '<glob>'`, or `--include-docs` for Markdown and other documentation. |
 | `default_path` | Add the file to `include` — that overrides built-in test-file exclude patterns. |
 | `provider_directory` | Nothing to do — provider directories such as `vendor/` and `node_modules/` are never reviewable, even when included. |
 | `deleted` | Nothing to do — there's no new content to review. |

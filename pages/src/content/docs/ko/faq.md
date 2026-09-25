@@ -111,7 +111,7 @@ imgs/logo.png           binary    (excluded: unsupported_ext)
 |---|---|
 | `binary` | 할 일이 없습니다. 바이너리 파일에는 리뷰할 텍스트가 없습니다. |
 | `user_exclude` | `exclude` 목록에서 해당 패턴을 빼세요. |
-| `unsupported_ext` | 확장자를 `include` 목록에 넣어 허용 목록 관문을 건너뛰세요. |
+| `unsupported_ext` | 확장자를 `include` 목록에 넣어 허용 목록 관문을 건너뛰세요. 한 번의 실행에만 적용하려면 `--include '<glob>'`를, Markdown 등 문서에는 `--include-docs`를 넘기세요. |
 | `default_path` | 파일을 `include`에 넣으세요. 내장 테스트 파일 제외 패턴을 덮어씁니다. |
 | `provider_directory` | 조치할 필요가 없습니다. `vendor/`, `node_modules/` 같은 provider 디렉터리는 `include`와 일치해도 검토 대상이 될 수 없습니다. |
 | `deleted` | 할 일이 없습니다. 리뷰할 새 내용이 없습니다. |

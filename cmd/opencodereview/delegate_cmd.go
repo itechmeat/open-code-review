@@ -23,6 +23,8 @@ type delegateOptions struct {
 	to             string
 	commit         string
 	excludes       string
+	includes       string
+	includeDocs    bool
 	rulePath       string
 	background     string
 	backgroundFile string
@@ -99,7 +101,8 @@ func loadDelegateContext(opts delegateOptions) (*delegateContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	applyCLIExcludes(cc, splitPaths(opts.excludes))
+	applyCLIExcludes(cc, splitPatterns(opts.excludes))
+	applyCLIIncludes(cc, splitPatterns(opts.includes), opts.includeDocs)
 
 	// Security: reject ref-option injection.
 	reviewOpts := reviewOptions{from: opts.from, to: opts.to, commit: opts.commit}

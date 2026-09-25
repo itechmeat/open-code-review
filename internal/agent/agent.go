@@ -1069,6 +1069,9 @@ func (a *Agent) ruleConfigSHA256() string {
 		for _, exc := range f.Exclude {
 			fields = append(fields, "exclude", exc)
 		}
+		for _, ext := range f.ExtraExts {
+			fields = append(fields, "extra_ext", ext)
+		}
 	}
 	return hashFields(fields...)
 }

@@ -108,7 +108,7 @@ imgs/logo.png           binary    (excluded: unsupported_ext)
 |---|---|
 | `binary` | 対処不要——バイナリファイルにはレビュー可能なテキストがありません。 |
 | `user_exclude` | あなたの `exclude` リストからそのパターンを削除してください。 |
-| `unsupported_ext` | ホワイトリストゲートを回避するため、拡張子を `include` リストに追加してください。 |
+| `unsupported_ext` | ホワイトリストゲートを回避するため、拡張子を `include` リストに追加してください。1 回の実行だけなら `--include '<glob>'` を、Markdown などのドキュメントには `--include-docs` を指定してください。 |
 | `default_path` | ファイルを `include` に追加してください——組み込みのテストファイル除外パターンを上書きします。 |
 | `provider_directory` | 対応は不要です。`vendor/` や `node_modules/` などの provider ディレクトリは、`include` に一致してもレビュー対象にはなりません。 |
 | `deleted` | 対処不要——レビュー対象の新しい内容がありません。 |

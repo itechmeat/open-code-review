@@ -521,7 +521,7 @@ func (a *Agent) whyExcluded(it model.ScanItem) model.ExcludeReason {
 		return model.ExcludeNone
 	}
 	ext := extFromPath(path)
-	if ext != "" && !allowedext.IsAllowedExt(ext) {
+	if ext != "" && !allowedext.IsAllowedExt(ext) && !a.args.FileFilter.AllowsExt(ext) {
 		return model.ExcludeExtension
 	}
 	if allowedext.IsExcludedPath(path) {

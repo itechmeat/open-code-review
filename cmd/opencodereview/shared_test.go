@@ -4,11 +4,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -284,4 +286,124 @@ func TestResolveWorkingDir_GitRepo(t *testing.T) {
 		t.Error("expected non-empty absPath")
 	}
 	_ = isGit
+}
+
+func TestApplyCLIIncludes(t *testing.T) {
+	cc := &commonContext{}
+	applyCLIIncludes(cc, nil, false)
+	if cc.FileFilter != nil {
+		t.Fatalf("no includes must leave the filter untouched, got %+v", cc.FileFilter)
+	}
+	applyCLIIncludes(cc, []string{"**/*.bat"}, true)
+	if cc.FileFilter == nil || !slices.Equal(cc.FileFilter.Include, []string{"**/*.bat"}) {
+		t.Fatalf("includes = %+v, want only **/*.bat", cc.FileFilter)
+	}
+	if !slices.Equal(cc.FileFilter.ExtraExts, docsExts) {
+		t.Fatalf("extra exts = %v, want %v", cc.FileFilter.ExtraExts, docsExts)
+	}
+
+	docsOnly := &commonContext{}
+	applyCLIIncludes(docsOnly, nil, true)
+	if docsOnly.FileFilter == nil || len(docsOnly.FileFilter.Include) != 0 || !slices.Equal(docsOnly.FileFilter.ExtraExts, docsExts) {
+		t.Fatalf("--include-docs alone = %+v, want only extra exts", docsOnly.FileFilter)
+	}
+}
+
+func TestSplitPatterns(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want []string
+	}{
+		{"", nil},
+		{"a/**, ,b.go", []string{"a/**", "b.go"}},
+		{"**/*.{ftl,ftlh},scripts/*.bat", []string{"**/*.{ftl,ftlh}", "scripts/*.bat"}},
+		{"{a,{b,c}},d", []string{"{a,{b,c}}", "d"}},
+		{"x},y", []string{"x}", "y"}},
+	}
+	for _, tt := range tests {
+		if got := splitPatterns(tt.raw); !slices.Equal(got, tt.want) {
+			t.Errorf("splitPatterns(%q) = %q, want %q", tt.raw, got, tt.want)
+		}
+	}
+}
+
+func TestReviewPreviewIncludeDocs(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	git("config", "user.email", "t@example.com")
+	git("config", "user.name", "T")
+	if err := os.MkdirAll(filepath.Join(dir, "vendor", "lib"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	write("main.go", "package main\n")
+	write("CHANGELOG.md", "# Changelog\n")
+	write("vendor/lib/README.md", "# lib\n")
+	write("run.bat", "@echo off\n")
+	write("run.cmd", "@echo off\n")
+	git("add", ".")
+	git("commit", "-q", "-m", "base")
+	write("main.go", "package main\n\nfunc main() {}\n")
+	write("CHANGELOG.md", "# Changelog\n\n- Added main.\n")
+	write("vendor/lib/README.md", "# lib\n\nUpdated.\n")
+	write("run.bat", "@echo off\necho hi\n")
+	write("run.cmd", "@echo off\necho hi\n")
+	git("commit", "-q", "-am", "change")
+
+	preview := func(extra ...string) string {
+		t.Helper()
+		var err error
+		out := captureStdout(t, func() {
+			err = runReview(append([]string{"--repo", dir, "--from", "HEAD~1", "--to", "HEAD", "--preview", "--format", "json"}, extra...))
+		})
+		if err != nil {
+			t.Fatalf("preview %v: %v", extra, err)
+		}
+		return out
+	}
+	willReview := func(out string) []string {
+		t.Helper()
+		var doc struct {
+			Files []struct {
+				Path       string `json:"path"`
+				WillReview bool   `json:"will_review"`
+			} `json:"files"`
+		}
+		if err := json.Unmarshal([]byte(out), &doc); err != nil {
+			t.Fatalf("unmarshal preview: %v\n%s", err, out)
+		}
+		var paths []string
+		for _, f := range doc.Files {
+			if f.WillReview {
+				paths = append(paths, f.Path)
+			}
+		}
+		slices.Sort(paths)
+		return paths
+	}
+	if got := willReview(preview()); !slices.Equal(got, []string{"main.go"}) {
+		t.Fatalf("default selection = %v, want only main.go", got)
+	}
+	if got := willReview(preview("--include-docs")); !slices.Equal(got, []string{"CHANGELOG.md", "main.go"}) {
+		t.Fatalf("--include-docs selection = %v, want CHANGELOG.md and main.go (vendored docs stay excluded)", got)
+	}
+	if got := willReview(preview("--include", "**/*.{bat,cmd}")); !slices.Equal(got, []string{"main.go", "run.bat", "run.cmd"}) {
+		t.Fatalf("--include brace selection = %v, want main.go, run.bat and run.cmd", got)
+	}
+	if got := willReview(preview("--include-docs", "--exclude", "CHANGELOG.md")); !slices.Equal(got, []string{"main.go"}) {
+		t.Fatalf("--exclude must still win over --include-docs, got %v", got)
+	}
 }
