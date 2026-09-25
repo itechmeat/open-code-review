@@ -110,6 +110,7 @@ unstaged + untracked 变更。
 | `--commit <sha>` | `-c` | — | 评审单个 commit（相对其父）。 |
 | `--preview` | `-p` | `false` | 运行过滤流水线但跳过 LLM。打印文件列表与排除原因。支持 `--format json`；不支持 `--format sarif`（预览没有已完成的发现可供输出）。 |
 | `--no-filter` | — | `false` | 保留所有评审评论，并跳过每个子任务的 `REVIEW_FILTER_TASK` LLM 后处理调用。子任务评审单个文件或一组相关文件。 |
+| `--allow-partial` | — | `false` | 评审已输出结果但部分选中文件失败时，以 `0` 而不是 `3` 退出。适用于部分评审不应让调用方失败的场景。 |
 | `--resume <session-id>` | — | — | 从之前兼容的区间或单 commit 评审会话恢复。 |
 | `--format <fmt>` | `-f` | `text` | `text`（人类可读）、`json`（机器可读的评论数组）或 `sarif`（用于 GitHub Code Scanning 的 SARIF 2.1.0 报告）。 |
 | `--output <path>` | `-o` | 标准输出 | 将评审结果写入 UTF-8 文件（`-` 表示标准输出）。首次写入时惰性创建文件，运行失败不会截断已有文件；文本格式自动剥离 ANSI 颜色码。 |
@@ -329,6 +330,7 @@ ocr review --format json | jq .summary   # stdout 是单个 JSON 文档
 |---|---|
 | `0` | 评审完成（可能零评论，可能有非致命警告）。 |
 | `1` | 致命错误——参数错误、无法解析 LLM 端点、所有 per-file 子 agent 失败等。错误文本打印到 stderr。 |
+| `3` | 部分评审——结果（发现、`session_id`、覆盖率）已输出，但部分选中文件失败（如 provider 限流或超时）。stderr 给出会话 ID；用 `ocr review --resume <session-id>` 加相同的 `--from`/`--to`/`--commit` 评审失败的文件。仅因 `--max-tokens-budget` 跳过的文件不计入，`--allow-partial` 会改为 `0`。 |
 
 非致命警告（单个子 agent 失败、某文件超过 token 阈值等）内联打印；JSON 模式下
 会加入 `warnings` 数组。

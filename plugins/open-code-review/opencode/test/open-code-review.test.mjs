@@ -598,6 +598,17 @@ test("ocr_review rejects invalid JSON output", async () => {
   )
 })
 
+test("ocr_review returns partial results when OCR exits 3", async () => {
+  await withFakeOcr(
+    "console.log('{\"status\":\"partial\",\"session_id\":\"s1\"}'); console.error('review incomplete'); process.exit(3)",
+    async (worktree) => {
+      const { hooks } = await loadPlugin(worktree)
+      const output = await hooks.tool.ocr_review.execute({}, toolContext(worktree))
+      assert.equal(output, "{\"status\":\"partial\",\"session_id\":\"s1\"}")
+    },
+  )
+})
+
 test("ocr_review reports no output instead of invalid JSON when OCR prints nothing", async () => {
   await withFakeOcr("", async (worktree) => {
     const { hooks } = await loadPlugin(worktree)

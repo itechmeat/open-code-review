@@ -224,13 +224,16 @@ OCR이 코멘트를 diff의 정확한 줄에 붙이지 못했다는 뜻입니다
   ["No tool calls parsed"(로컬 모델 / Ollama)](#no-tool-calls-parsed-local-models-ollama)를
   참고하세요.
 
-### 서브 Agent 일부가 실패했는데 종료 코드가 0입니다 {#some-sub-agents-fail-the-run-still-exits-0}
+### 서브 Agent 일부가 실패하면 종료 코드가 3입니다 {#some-sub-agents-fail-the-run-still-exits-0}
 
-의도한 동작입니다. OCR은 그룹별 실패를 격리해 그룹 하나가 잘못됐다고 파일
-20개짜리 리뷰가 통째로 죽지 않게 합니다. *하나라도* 성공했다면 전체 종료 코드는
-`0`입니다. 완전히 실패한 실행(성공한 서브 Agent가 0개)만 0이 아닌 코드로
-끝납니다. 어느 그룹이 실패했는지는 JSON 모드의 `warnings` 배열이나 텍스트 모드의
-stderr에서 확인하세요.
+OCR은 그룹별 실패를 격리해 그룹 하나가 잘못됐다고 파일 20개짜리 리뷰가 통째로
+죽지 않게 합니다. 나머지 그룹의 지적은 그대로 출력됩니다. 다만 리뷰가 완전하지
+않으므로 실행은 `0` 대신 `3`으로 끝나고, stderr에 이어서 돌릴 세션을 출력합니다.
+`ocr review --resume <session-id>`에 같은 `--from`/`--to`/`--commit`을 붙이면 실패한
+파일만 리뷰합니다. 완전히 실패한 실행(성공한 서브 Agent가 0개)은 `1`입니다.
+`--max-tokens-budget` 때문에만 건너뛴 파일은 `0`을 유지하고, `--allow-partial`을 주면
+어떤 부분 리뷰도 `0`으로 끝납니다. 어느 그룹이 실패했는지는 JSON 모드의
+`manifest.coverage.failed`나 텍스트 모드의 stderr에서 확인하세요.
 
 ### CI 실행이 로컬보다 훨씬 느립니다 {#ci-run-is-much-slower-than-local}
 

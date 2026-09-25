@@ -71,7 +71,7 @@ ocr review --audience agent --background "business context here" [user-args]
 - Always use `--audience agent` to suppress progress UI and emit only the final summary
 - **Prevent output truncation**: For large reviews or restricted tool environments, pass `--output /tmp/ocr_out.txt` and inspect the file in full via a file reading tool instead of piping stdout through `tail` or `head`, which drops earlier review comments.
 
-**On failure:** If `ocr review` exits non-zero (e.g. an LLM connection error), do not retry blindly — consult the Troubleshooting section below for the matching fix before re-running.
+**On failure:** If `ocr review` exits `1` (e.g. an LLM connection error), do not retry blindly — consult the Troubleshooting section below for the matching fix before re-running. Exit `3` means a partial review: the printed findings are valid, but some files failed (often provider rate limits); report the findings and review the rest with `ocr review --resume <id>` and the same target.
 
 ### Step 3: Report
 
@@ -207,13 +207,13 @@ Beyond the common flags above, `ocr review` exposes a few groups of controls. Ru
 - **Don't pass `--audience human`** — it streams progress UI that pollutes output. Always use `--audience agent`.
 - **Comment language follows config** — the `language` config controls review comment language, defaults to `English`, and accepts any language name (for example `English` or `中文`).
 - **Avoid output truncation** — Large review runs produce verbose output. Never pipe command output to `tail` or `head` as it drops review comments from earlier sections. Use `--output <path>` and read it in full; on older CLIs, follow the **Output file** guidance above.
-- **Resume an interrupted review** — a failed or interrupted range/commit review can be continued with `ocr review --resume <id>` using the same `--from`/`--to` or `--commit` target (the id is printed as `retry with: --resume <id>` on failure, or find it with `ocr session list`). Workspace resume is not supported.
+- **Resume an interrupted review** — a failed or interrupted range/commit review can be continued with `ocr review --resume <id>` using the same `--from`/`--to` or `--commit` target (the id is printed on stderr after a failed or partial run, or find it with `ocr session list`). Workspace resume is not supported.
 
 ## Validation
 
 After the review completes, verify success by checking:
 
-1. The command exited with code 0
+1. The command exited with code 0 (code 3: partial, see **On failure** above)
 2. Comments were generated (or "No comments generated" message appears)
 3. Warnings (if any) are displayed in stderr
 
