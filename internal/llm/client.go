@@ -559,6 +559,10 @@ func NewOpenAIClient(cfg ClientConfig) *OpenAIClient {
 		openaiopt.WithRequestTimeout(cfg.Timeout),
 		openaiopt.WithHTTPClient(httpClientWithHeaderTimeout(cfg.Timeout)),
 	}
+	// Outermost: the observer inside it records the server's own 429 headers
+	// before this middleware adds a backoff hint, and the limiter gates the
+	// whole attempt including raw capture.
+	opts = append(opts, openaiopt.WithMiddleware(newRateLimitMiddleware(newAdaptiveLimiter())))
 	if mw := retryCodesMiddleware(cfg.RetryCodes); mw != nil {
 		opts = append(opts, openaiopt.WithMiddleware(mw))
 	}
@@ -1149,6 +1153,8 @@ func NewAnthropicClient(cfg ClientConfig) *AnthropicClient {
 		)
 	}
 
+	// Outermost; see NewOpenAIClient.
+	opts = append(opts, option.WithMiddleware(newRateLimitMiddleware(newAdaptiveLimiter())))
 	if mw := retryCodesMiddleware(cfg.RetryCodes); mw != nil {
 		opts = append(opts, option.WithMiddleware(mw))
 	}
@@ -1208,6 +1214,8 @@ func NewAnthropicBedrockClient(cfg ClientConfig) *AnthropicClient {
 	}
 	// ExtraHeaders are applied per request in CompletionsWithCtx, where the
 	// session key template can expand — same as the plain Anthropic client.
+	// Outermost; see NewOpenAIClient.
+	opts = append(opts, option.WithMiddleware(newRateLimitMiddleware(newAdaptiveLimiter())))
 	if mw := retryCodesMiddleware(cfg.RetryCodes); mw != nil {
 		opts = append(opts, option.WithMiddleware(mw))
 	}
