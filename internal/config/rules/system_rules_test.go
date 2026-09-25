@@ -190,7 +190,7 @@ func TestResolve_FallbackToDefault(t *testing.T) {
 	}
 
 	paths := []string{
-		"readme.md",
+		"LICENSE",
 		"docs/architecture.txt",
 		"Makefile",
 	}
@@ -418,7 +418,7 @@ func TestNewResolver_CustomRuleOverridesDefault(t *testing.T) {
 		t.Errorf("expected custom-go-rule, got %q", got)
 	}
 	// --rule not matched → falls through to system default
-	got = resolver.Resolve("readme.md")
+	got = resolver.Resolve("notes.txt")
 	if !strings.Contains(got, "Correctness") {
 		t.Errorf("expected system default rule, got %q", truncate(got, 80))
 	}
@@ -644,7 +644,7 @@ func TestNewResolver_CustomOverridesProject(t *testing.T) {
 		{"force-api/src/foo.java", "custom-java-rule"}, // --rule wins (highest priority)
 		{"other/src/bar.java", "custom-java-rule"},     // --rule wins
 		{"main.go", "project-go-rule"},                 // --rule misses → project wins
-		{"readme.md", "Correctness"},                   // all miss → system default
+		{"LICENSE", "Correctness"},                     // all miss → system default
 	}
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
@@ -873,7 +873,7 @@ func TestResolveDetail_SystemDefault(t *testing.T) {
 	}
 	dr := resolver.(DetailResolver)
 
-	detail := dr.ResolveDetail("readme.md")
+	detail := dr.ResolveDetail("notes.txt")
 	if detail.Source != "system" {
 		t.Errorf("expected source 'system', got %q", detail.Source)
 	}
@@ -1828,6 +1828,11 @@ var specialCaseRuleDocs = map[string]bool{
 	"objc.md": true,
 }
 
+// includeOnlyExts are extensions deliberately absent from the allowlist whose
+// rule still runs: documentation files enter a review only through an include
+// pattern (--include-docs), which admits them ahead of the extension check.
+var includeOnlyExts = map[string]bool{".md": true, ".mdx": true, ".markdown": true, ".rst": true, ".adoc": true}
+
 // referencedRuleFiles reads the embedded system_rules.json and returns the set of
 // rule_docs filenames it references (default_rule + every path_rule_map value).
 // A plain map decode is enough here: we only need the value set, not key order.
@@ -1917,7 +1922,7 @@ func TestSystemRulesIntegrity(t *testing.T) {
 		for _, pr := range rule.PathRules {
 			for _, p := range expandBraces(pr.Pattern) {
 				ext, ok := globExt(p)
-				if !ok {
+				if !ok || includeOnlyExts[ext] {
 					continue
 				}
 				t.Run(p, func(t *testing.T) {
@@ -2042,4 +2047,16 @@ func TestLoadGlobalRule(t *testing.T) {
 			t.Errorf("unexpected rule: %+v", pr)
 		}
 	})
+}
+
+func TestDefaultRulesMapDocumentationFiles(t *testing.T) {
+	rule, err := LoadDefault()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"CHANGELOG.md", "docs/guide.mdx", "README.rst", "manual.adoc"} {
+		if got := rule.Resolve(path); !strings.Contains(got, "Changelog and release notes") {
+			t.Errorf("Resolve(%q) did not pick the documentation rule, got:\n%.200s", path, got)
+		}
+	}
 }
