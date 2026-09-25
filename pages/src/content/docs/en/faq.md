@@ -230,15 +230,17 @@ is usually one of:
   local models) — see
   ["No tool calls parsed" (local models / Ollama)](#no-tool-calls-parsed-local-models-ollama).
 
-### Some sub-agents fail; why is the exit code non-zero?
+### Some sub-agents fail; the run exits 3
 
-OCR isolates per-group failures and still publishes findings from completed
-groups. Operational failures such as timeouts, provider errors, and bad
-configuration nevertheless make the command exit non-zero, even when sibling
-groups succeeded, so CI can detect incomplete coverage. A partial review caused
-only by configured budget limits remains a successful exit. Check
-`manifest.coverage.failed` and `warnings` in JSON mode, or the text summary, to
-see which groups failed and whether the run can be resumed.
+OCR isolates per-group failures so one bad group doesn't kill a 20-file
+review: the other groups' findings are still published. Because the
+review is incomplete, the run then exits `3` rather than `0`, and stderr
+prints the session to resume: `ocr review --resume <session-id>` with the
+same `--from`/`--to`/`--commit` reviews only the failed files. A
+fully-failed run (zero successful sub-agents) exits `1`. Files skipped
+only by `--max-tokens-budget` keep the exit at `0`, and `--allow-partial`
+restores `0` for any partial run. Check `manifest.coverage.failed` in JSON
+mode or stderr in text mode to see which groups failed.
 
 ### CI run is much slower than local
 
