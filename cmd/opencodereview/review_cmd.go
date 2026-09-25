@@ -51,6 +51,7 @@ type reviewOptions struct {
 	effort                string
 	noFilter              bool
 	preview               bool
+	allowPartial          bool
 }
 
 var reviewOpts reviewOptions
@@ -320,7 +321,50 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 		}
 		return errors.Join(resultErr, emitErr)
 	}
-	return emitErr
+	if emitErr != nil {
+		return emitErr
+	}
+	if perr := partialResultError(manifest, opts.allowPartial); perr != nil {
+		span.SetStatus(codes.Error, perr.Error())
+		if id := ag.SessionID(); id != "" {
+			fmt.Fprintf(os.Stderr, "[ocr] Session: %s (review the failed files with: ocr review --resume %s, plus the same --from/--to/--commit)\n", id, id)
+		}
+		return perr
+	}
+	return nil
+}
+
+// partialReviewError reports a review that published results while some
+// selected files failed. It exits with exitPartial rather than 1: the findings
+// on stdout are valid, the run is just not complete.
+type partialReviewError struct {
+	failed, selected int
+}
+
+func (e *partialReviewError) Error() string {
+	return fmt.Sprintf("review incomplete: %d of %d selected item(s) failed; partial results were published (exit code %d; --allow-partial exits 0)",
+		e.failed, e.selected, exitPartial)
+}
+
+func (e *partialReviewError) ExitCode() int { return exitPartial }
+
+// partialResultError returns a partialReviewError when a partial run lost files
+// to failures. Items stopped by --max-tokens-budget do not count: that is a
+// truncation the caller asked for, and it keeps exiting 0 as documented.
+func partialResultError(manifest *session.RunManifest, allowPartial bool) error {
+	if allowPartial || manifest == nil || manifest.TerminalState != session.StatePartial {
+		return nil
+	}
+	failed := 0
+	for _, item := range manifest.Coverage.Failed {
+		if item.Classification != session.FailureBudget {
+			failed++
+		}
+	}
+	if failed == 0 {
+		return nil
+	}
+	return &partialReviewError{failed: len(manifest.Coverage.Failed), selected: len(manifest.Coverage.Selected)}
 }
 
 func reviewResultError(runErr error, manifest *session.RunManifest) error {
@@ -328,9 +372,10 @@ func reviewResultError(runErr error, manifest *session.RunManifest) error {
 		return fmt.Errorf("review failed: %w", runErr)
 	}
 	if manifest != nil && manifest.TerminalState == session.StateFailed {
-		// The exit contract is: non-zero only for a run-level failure, or when
-		// every selected item failed. Any usable coverage — even incomplete — exits
-		// 0, so complete/partial/skipped all succeed and only failed lands here.
+		// The exit contract is: 1 for a run-level failure, or when every selected
+		// item failed. Usable coverage never lands here; a partial run is judged
+		// after its results are published, by partialResultError (exit 3 unless
+		// the only losses were budget stops).
 		// That makes a budget stop exit 0 whenever anything was covered (it is a
 		// controlled truncation recording no run_failure) and non-zero only when
 		// the cap left nothing covered at all. Partial results are published

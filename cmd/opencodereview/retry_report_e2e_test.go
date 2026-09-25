@@ -58,10 +58,13 @@ func TestReviewE2E_RecoveredAndFailedReachesJSONExit(t *testing.T) {
 	startFakeLLM(t, srv)
 
 	out, errOut, err := runReviewCapturingBoth(t, repoDir, "json")
-	// One file failed and one succeeded, so coverage is partial and the run
-	// exits 0.
-	if err != nil {
-		t.Fatalf("partial coverage must exit 0: %v\nstderr: %s", err, errOut)
+	// One file failed and one succeeded, so coverage is partial: the results are
+	// still published, and the run exits with the distinct partial status.
+	if err == nil || exitCodeFor(err) != exitPartial {
+		t.Fatalf("partial coverage must exit %d: %v\nstderr: %s", exitPartial, err, errOut)
+	}
+	if !strings.Contains(errOut, "--resume") {
+		t.Errorf("partial exit must tell the user how to resume:\n%s", errOut)
 	}
 
 	var got jsonOutput
@@ -138,8 +141,8 @@ func TestReviewE2E_RetryReportReachesTextExit(t *testing.T) {
 	startFakeLLM(t, srv)
 
 	out, errOut, err := runReviewCapturingBoth(t, repoDir, "text")
-	if err != nil {
-		t.Fatalf("partial coverage must exit 0: %v\nstderr: %s", err, errOut)
+	if err == nil || exitCodeFor(err) != exitPartial {
+		t.Fatalf("partial coverage must exit %d: %v\nstderr: %s", exitPartial, err, errOut)
 	}
 	// This test attributes a 429 and a 402 to named files, which only holds while
 	// each file is its own request — i.e. while the fake still answers the

@@ -165,6 +165,8 @@ function appendChunk(
   return nextBytes
 }
 
+const OCR_EXIT_PARTIAL = 3
+
 async function runOcr(args: string[], options: RunOptions): Promise<RunResult> {
   const invocation = options.invocation ?? { command: "ocr", prefixArgs: [] }
   const timeoutMs = options.timeoutMs === undefined ? 15 * 60 * 1000 : options.timeoutMs
@@ -258,7 +260,10 @@ async function runOcr(args: string[], options: RunOptions): Promise<RunResult> {
       finish(() => {
         const stdout = Buffer.concat(stdoutChunks).toString("utf8").trim()
         const stderr = Buffer.concat(stderrChunks).toString("utf8").trim()
-        if (exitCode === 0) {
+        // Exit 3 is a review that published partial results: some files
+        // failed, the JSON on stdout (with its session_id for --resume) is
+        // still valid and more useful to the agent than an error.
+        if (exitCode === 0 || exitCode === OCR_EXIT_PARTIAL) {
           resolve({ stdout, stderr, exitCode, signal: signal ?? null })
           return
         }

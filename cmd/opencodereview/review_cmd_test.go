@@ -142,3 +142,61 @@ func TestParseReviewFlagsAllowsFromAndTo(t *testing.T) {
 		t.Fatalf("unexpected opts: from=%q to=%q", opts.from, opts.to)
 	}
 }
+
+func TestPartialResultErrorExitsThreeUnlessOnlyBudgetOrAllowed(t *testing.T) {
+	selected := []session.CoverageItem{{ItemID: "a"}, {ItemID: "b"}, {ItemID: "c"}}
+	providerPartial := &session.RunManifest{
+		TerminalState: session.StatePartial,
+		Coverage: session.Coverage{
+			Selected:  selected,
+			Completed: []session.CoverageItem{{ItemID: "a"}},
+			Failed: []session.CoverageItem{
+				{ItemID: "b", Classification: session.FailureProvider},
+				{ItemID: "c", Classification: session.FailureBudget},
+			},
+		},
+	}
+	err := partialResultError(providerPartial, false)
+	if err == nil {
+		t.Fatal("partial run with a provider failure must not exit 0")
+	}
+	if got := exitCodeFor(err); got != exitPartial {
+		t.Fatalf("exit code = %d, want %d", got, exitPartial)
+	}
+	if !strings.Contains(err.Error(), "2 of 3 selected item(s) failed") || !strings.Contains(err.Error(), "--allow-partial") {
+		t.Fatalf("unexpected message: %v", err)
+	}
+	if got := exitCodeFor(errors.Join(errors.New("other"), err)); got != exitPartial {
+		t.Fatalf("joined error exit code = %d, want %d", got, exitPartial)
+	}
+
+	if err := partialResultError(providerPartial, true); err != nil {
+		t.Fatalf("--allow-partial must exit 0: %v", err)
+	}
+
+	budgetOnly := &session.RunManifest{
+		TerminalState: session.StatePartial,
+		Coverage: session.Coverage{
+			Selected:  selected[:2],
+			Completed: []session.CoverageItem{{ItemID: "a"}},
+			Failed:    []session.CoverageItem{{ItemID: "b", Classification: session.FailureBudget}},
+		},
+	}
+	if err := partialResultError(budgetOnly, false); err != nil {
+		t.Fatalf("budget-only partial must keep exiting 0: %v", err)
+	}
+	for _, state := range []session.TerminalState{session.StateComplete, session.StateSkipped, session.StateFailed} {
+		if err := partialResultError(&session.RunManifest{TerminalState: state}, false); err != nil {
+			t.Errorf("state %q: unexpected partial error %v", state, err)
+		}
+	}
+	if err := partialResultError(nil, false); err != nil {
+		t.Fatalf("nil manifest: %v", err)
+	}
+}
+
+func TestExitCodeForDefaultsToOne(t *testing.T) {
+	if got := exitCodeFor(errors.New("boom")); got != 1 {
+		t.Fatalf("exit code = %d, want 1", got)
+	}
+}

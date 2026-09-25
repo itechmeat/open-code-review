@@ -55,7 +55,7 @@ func addConcurrencyFlags(cmd *cobra.Command, concurrency, timeout, maxTools, max
 	cmd.Flags().IntVar(maxTools, "max-tools", 0, "max tool call rounds per subtask (0 = template default; min 50)")
 	cmd.Flags().IntVar(maxGitProcs, "max-git-procs", 16, "max concurrent git subprocesses")
 	cmd.Flags().IntVar(maxTokens, "max-tokens", 0, "per-group prompt token ceiling (0 = configured or template default)")
-	cmd.Flags().IntVar(maxTokensBudget, "max-tokens-budget", 0, "cap total token usage (input+output) for this review; checked before every LLM round, so a group already over budget gets one final round to submit findings and is reported as failed(budget), and no further groups are dispatched. Partial results are published and review exits 0; it exits non-zero only if every selected item failed (0 = unlimited)")
+	cmd.Flags().IntVar(maxTokensBudget, "max-tokens-budget", 0, "cap total token usage (input+output) for this review; checked before every LLM round, so a group already over budget gets one final round to submit findings and is reported as failed(budget), and no further groups are dispatched. Partial results are published and a budget-only stop exits 0; it exits non-zero only if every selected item failed (0 = unlimited)")
 }
 
 func addModelFlag(cmd *cobra.Command, target *string) {
@@ -216,6 +216,7 @@ func registerReviewFlags(cmd *cobra.Command, opts *reviewOptions) {
 	cmd.Flags().StringVar(&opts.effort, "effort", "", "review effort preset: low | medium | high (\"\" = configured or default medium)")
 	cmd.RegisterFlagCompletionFunc("effort", completeEnum(template.EffortNames()...))
 	cmd.Flags().BoolVar(&opts.noFilter, "no-filter", false, "keep all review comments without LLM post-filtering")
+	cmd.Flags().BoolVar(&opts.allowPartial, "allow-partial", false, "exit 0 when some selected files failed but results were published (default: exit 3)")
 	addPreviewFlag(cmd, &opts.preview)
 }
 
