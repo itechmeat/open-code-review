@@ -34,10 +34,9 @@ Recover from these errors once, then report if they persist:
 
 | Error text | Action |
 |------------|--------|
-| `provider "claude-code" is not configured` | run `ocr config set providers.claude-code.model sonnet`, retry |
 | `not logged in` | stop; tell the caller to run `claude` and `/login` |
 | `too old for this provider` | stop; tell the caller to update Claude Code |
-| `usage limit` | stop; report the limit and the session ID if any |
+| `usage limit` | ocr already stopped the run (exit 3); report the limit, the partial findings and the `--resume` session ID |
 
 ## 2. Verify
 
