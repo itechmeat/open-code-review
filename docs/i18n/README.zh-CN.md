@@ -122,7 +122,7 @@ npm install -g @alibaba-group/open-code-review
 
 **1. 配置 LLM**
 
-在审查代码之前，必须先配置 LLM。除非你使用[委托模式](https://open-codereview.ai/docs/delegate)。
+如果已安装并登录 Claude Code CLI（`claude`），则无需任何设置：在没有其他配置时，OCR 会通过 `claude-code` 供应商使用你的 Claude 订阅进行审查，模型为 `opus`。否则，在审查代码之前必须先配置 LLM，除非你使用[委托模式](https://open-codereview.ai/docs/delegate)。
 
 ```bash
 ocr config provider          # 选择内置供应商或添加自定义供应商
@@ -134,6 +134,8 @@ ocr config model             # 为当前供应商选择模型
 交互式界面会引导你完成供应商选择、API Key 输入和模型配置，完成后自动测试连通性。
 
 命令行设置、环境变量、自定义供应商等高级配置，详见[配置指南](https://open-codereview.ai/docs/configuration)。
+
+`--provider` 和 `--model` 可在单次运行中切换供应商或模型（`ocr review --provider claude-code --model sonnet`）；`ocr config set provider <name>` 用于更改默认供应商。
 
 **2. 开始审查**
 
