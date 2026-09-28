@@ -207,11 +207,18 @@ func legacyLlmBlockStarted(path string) bool {
 	return false
 }
 
-// ClaudeCodeFallback reports the endpoint the last resolution strategy would
-// pick, without consulting any other source.
-func ClaudeCodeFallback() (ResolvedEndpoint, bool) {
-	ep, ok, _ := tryClaudeCodeFallback("")
-	return ep, ok
+// ClaudeCodeDefault reports the claude-code endpoint when a run without
+// --provider would fall back to it. A started llm block is checked first so
+// that its auth_token_cmd never runs just to answer this question.
+func ClaudeCodeDefault(configPath string) (ResolvedEndpoint, bool) {
+	if legacyLlmBlockStarted(configPath) {
+		return ResolvedEndpoint{}, false
+	}
+	ep, err := ResolveEndpoint(configPath)
+	if err != nil || ep.Protocol != ProtocolClaudeCode {
+		return ResolvedEndpoint{}, false
+	}
+	return ep, true
 }
 
 // tryClaudeCodeFallback is the last strategy: with nothing else configured, a
