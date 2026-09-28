@@ -79,11 +79,15 @@ func TestLLMTestProviderFlagSelectsNonDefaultProvider(t *testing.T) {
 	}
 
 	t.Cleanup(func() { llmTestOpts = llmTestOptions{} })
-	if err := llmTestCmd.Flags().Set("provider", "claude-code"); err != nil {
-		t.Fatal(err)
-	}
-	if err := llmTestCmd.Flags().Set("model", "haiku"); err != nil {
-		t.Fatal(err)
+	for name, value := range map[string]string{"provider": "claude-code", "model": "haiku"} {
+		f := llmTestCmd.Flags().Lookup(name)
+		t.Cleanup(func() {
+			_ = f.Value.Set(f.DefValue)
+			f.Changed = false
+		})
+		if err := llmTestCmd.Flags().Set(name, value); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	var runErr error
