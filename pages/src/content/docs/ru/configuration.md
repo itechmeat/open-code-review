@@ -220,9 +220,11 @@ Model:  opus
 `llm` тоже выдаёт ошибку; ни то ни другое не переключается на Claude Code.
 То же касается `OCR_LLM_URL` / `OCR_LLM_TOKEN` или `ANTHROPIC_BASE_URL` /
 `ANTHROPIC_AUTH_TOKEN`, заданных без остальной части адреса: ошибка называет
-их, и ревью не уходит на вход Claude. Когда
-провайдер не задан, `ocr config get provider` выводит `claude-code` и поясняет
-источник в stderr.
+их, и ревью не уходит на вход Claude.
+`ocr config get provider` выводит `claude-code`, только когда ревью
+действительно перейдёт на него, и поясняет источник в stderr; если адрес задают
+блок `llm`, `OCR_LLM_*` или `ANTHROPIC_*`, команда сообщает, что провайдер не
+задан.
 
 `--provider <preset>` в `ocr review`, `ocr scan` и `ocr llm test` выбирает
 провайдера на один запуск, не меняя конфигурацию. Встроенный пресет работает без

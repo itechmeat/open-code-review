@@ -194,8 +194,10 @@ Model:  opus
 配置文件始终优先。配置文件中指定的 provider 即使配置有误也会保留其错误，填了一半的
 `llm` 配置块同样会报错；两者都不会回退到 Claude Code。只设置了
 `OCR_LLM_URL` / `OCR_LLM_TOKEN` 或 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`
-而缺少其余端点设置时也是如此：错误信息会点名这些变量，而不会改用 Claude 登录进行评审。未设置 provider 时，
-`ocr config get provider` 打印 `claude-code`，并在 stderr 上说明来源。
+而缺少其余端点设置时也是如此：错误信息会点名这些变量，而不会改用 Claude 登录进行评审。
+只有评审确实会回退到 `claude-code` 时，`ocr config get provider` 才打印它，并在
+stderr 上说明来源；当端点由 `llm` 配置块、`OCR_LLM_*` 或 `ANTHROPIC_*` 配置时，
+它会报告未设置 provider。
 
 `ocr review`、`ocr scan` 和 `ocr llm test` 上的 `--provider <preset>` 为单次运行选择
 provider，不修改配置。内置预设在不需要 API key（`claude-code`、`bedrock`）或其 API key

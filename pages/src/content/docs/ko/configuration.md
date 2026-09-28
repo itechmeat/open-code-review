@@ -161,7 +161,7 @@ Claude Code가 구독 사용량 한도를 보고하면 `ocr review`는 남은 �
 4. 셸 rc 파일에 있는 같은 export.
 5. `PATH`의 Claude Code CLI(또는 `OCR_CLAUDE_CODE_BIN`): 프로바이더 `claude-code`, 모델 `opus`.
 
-설정 파일이 항상 우선합니다. 설정 파일이 프로바이더를 지정했다면 설정이 잘못됐더라도 그 프로바이더의 오류가 그대로 보고되고, 반쯤 채운 `llm` 블록도 오류로 보고됩니다. 어느 쪽도 Claude Code로 대체되지 않습니다. 엔드포인트의 나머지 없이 `OCR_LLM_URL` / `OCR_LLM_TOKEN` 또는 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`만 설정한 경우도 마찬가지로, Claude 로그인으로 리뷰하는 대신 오류가 해당 변수를 알려 줍니다. 프로바이더가 설정되지 않았으면 `ocr config get provider`는 `claude-code`를 출력하고 그 출처를 stderr에 설명합니다.
+설정 파일이 항상 우선합니다. 설정 파일이 프로바이더를 지정했다면 설정이 잘못됐더라도 그 프로바이더의 오류가 그대로 보고되고, 반쯤 채운 `llm` 블록도 오류로 보고됩니다. 어느 쪽도 Claude Code로 대체되지 않습니다. 엔드포인트의 나머지 없이 `OCR_LLM_URL` / `OCR_LLM_TOKEN` 또는 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`만 설정한 경우도 마찬가지로, Claude 로그인으로 리뷰하는 대신 오류가 해당 변수를 알려 줍니다. `ocr config get provider`는 리뷰가 실제로 `claude-code`로 대체될 때만 이를 출력하고 그 출처를 stderr에 설명합니다. `llm` 블록, `OCR_LLM_*`, `ANTHROPIC_*`가 엔드포인트를 구성하는 동안에는 프로바이더가 설정되지 않았다고 알려 줍니다.
 
 `ocr review`, `ocr scan`, `ocr llm test`의 `--provider <preset>`은 설정을 바꾸지 않고 이번 실행의 프로바이더를 고릅니다. 내장 프리셋은 API 키가 필요 없거나(`claude-code`, `bedrock`) 그 API 키 환경 변수가 설정돼 있으면 `providers.<name>` 항목 없이도, 설정 파일 없이도 동작합니다. 모델은 `--model`, 항목의 `model`, 최상위 `model`(`--provider`가 설정된 프로바이더를 가리킬 때만 유지), 프리셋 기본값 순으로 정해집니다. 기본값이 있는 프리셋은 `claude-code`뿐이므로 `bedrock`은 여전히 `--model`이 필요합니다. `--model`은 프리셋 모델 목록, 항목의 `models`, 그리고 항목이나 최상위 `model`에 설정된 모델을 받습니다. 프리셋 목록에 아직 없는 모델이어도 됩니다.
 
