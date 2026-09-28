@@ -15,6 +15,7 @@ sidebar:
 no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL,
 ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/
 ANTHROPIC_MODEL must be set
+installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work
 ```
 
 OCR 走完了整条端点解析链（[配置](../configuration/#复用已有的环境变量)）但没
@@ -25,6 +26,10 @@ OCR 走完了整条端点解析链（[配置](../configuration/#复用已有的�
 - 导出 `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`，**或**
 - 若你已在用 Claude Code，导出 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` /
   `ANTHROPIC_MODEL`。
+
+最后一行指向解析链中的最后一个来源：安装 Claude Code 并登录（`claude`，然后 `/login`），
+或在它不在 `PATH` 上时设置 `OCR_CLAUDE_CODE_BIN`，OCR 就会回退到
+[`claude-code` provider](../configuration/#claude-code-subscription)。
 
 然后 `ocr llm test` 验证连通性再重试评审。
 
