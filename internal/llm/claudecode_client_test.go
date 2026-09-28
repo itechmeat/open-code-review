@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // useFakeClaude routes the client to the test binary in the given mode and
@@ -156,6 +157,7 @@ func TestClaudeCodeClientErrors(t *testing.T) {
 		{"error-limit", ErrClaudeCodeUsageLimit, "usage limit"},
 		{"old-cli", ErrClaudeCodeOutdated, "unknown option '--effort'"},
 		{"stderr-only", nil, "boom: unexpected failure"},
+		{"error-empty", nil, "claude-code: error_during_execution"},
 		{"garbage", nil, "not json"},
 	}
 	for _, tt := range tests {
@@ -311,6 +313,20 @@ func TestTruncateForErrorKeepsTail(t *testing.T) {
 	got := truncateForError(long)
 	if len(got) > 2100 || !strings.HasSuffix(got, "the real cause") {
 		t.Errorf("truncateForError kept %d bytes, suffix %q", len(got), got[len(got)-20:])
+	}
+}
+
+func TestTruncateForErrorKeepsRunesWhole(t *testing.T) {
+	got := truncateForError(strings.Repeat("\u00e9", 3000) + "!")
+	if !utf8.ValidString(got) {
+		t.Errorf("truncateForError split a rune: %q", got[:8])
+	}
+}
+
+func TestClaudeCodeBinaryRequiresRegularFile(t *testing.T) {
+	t.Setenv(envClaudeCodeBin, t.TempDir())
+	if _, err := claudeCodeBinary(); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("err = %v, want a directory rejected", err)
 	}
 }
 
