@@ -279,6 +279,9 @@ func clearAllEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	// The same holds for a developer's installed claude CLI, which the last
+	// strategy would otherwise pick up.
+	t.Setenv(envClaudeCodeBin, filepath.Join(home, "no-claude"))
 }
 
 func writeResolverConfig(t *testing.T, cfg configFile) (string, []byte) {
