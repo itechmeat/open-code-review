@@ -38,3 +38,26 @@ func TestClassifyClaudeCodeFailureSeparatesTransientLimits(t *testing.T) {
 		})
 	}
 }
+
+func TestClassifyClaudeCodeFailureStopsOnPlanLimitsWithResetTime(t *testing.T) {
+	tests := []struct{ msg, detail string }{
+		{"You've hit your session limit · resets 5pm (Europe/Belgrade)", "resets 5pm (Europe/Belgrade)"},
+		{"You've hit your session limit - resets 5pm (Europe/Belgrade)", "resets 5pm (Europe/Belgrade)"},
+		{"Session limit reached ∙ resets 11:30pm", "resets 11:30pm"},
+		{"You've hit your limit · resets 3am (UTC)", "resets 3am (UTC)"},
+		{"Claude AI usage limit reached|1760000000", "resets 2025-10-09 08:53 UTC"},
+		{"Claude AI usage limit reached", "Claude AI usage limit reached"},
+		{"You've hit your session limit", "You've hit your session limit"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.msg, func(t *testing.T) {
+			err := classifyClaudeCodeFailure(tt.msg)
+			if !errors.Is(err, ErrFatalForRun) || !errors.Is(err, ErrClaudeCodeUsageLimit) {
+				t.Fatalf("err = %v, want the run-fatal usage limit", err)
+			}
+			if want := ErrClaudeCodeUsageLimit.Error() + ": " + tt.detail; FatalCause(err).Error() != want {
+				t.Errorf("FatalCause() = %q, want %q", FatalCause(err), want)
+			}
+		})
+	}
+}
