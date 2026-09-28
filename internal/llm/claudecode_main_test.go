@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -71,8 +73,12 @@ func runFakeClaude(mode string) int {
 		}
 		mode = "tools"
 	}
-	if mode == "resume-fails" {
+	if mode == "resume-fails" || mode == "resume-login" {
 		for _, a := range os.Args {
+			if a == "--resume" && mode == "resume-login" {
+				fmt.Print(`{"type":"result","is_error":true,"result":"Not logged in · Please run /login"}`)
+				return 1
+			}
 			if a == "--resume" {
 				fmt.Print(`{"type":"result","is_error":true,"result":"No conversation found with session ID"}`)
 				return 1
@@ -108,6 +114,18 @@ func runFakeClaude(mode string) int {
 	case "garbage":
 		fmt.Print("not json")
 	case "sleep":
+		time.Sleep(30 * time.Second)
+	case "spawn-sleep":
+		// Like the real CLI running a tool, the child holds the output pipes
+		// open, so only a kill of the whole process group ends the request.
+		child := exec.Command(os.Args[0])
+		child.Env = append(os.Environ(), "OCR_FAKE_CLAUDE=sleep", "OCR_FAKE_CLAUDE_DUMP=")
+		child.Stdout, child.Stderr = os.Stdout, os.Stderr
+		if err := child.Start(); err != nil {
+			fmt.Fprint(os.Stderr, err)
+			return 3
+		}
+		_ = os.WriteFile(os.Getenv("OCR_FAKE_CLAUDE_PIDFILE"), []byte(strconv.Itoa(child.Process.Pid)), 0o600)
 		time.Sleep(30 * time.Second)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown fake mode %q", mode)
