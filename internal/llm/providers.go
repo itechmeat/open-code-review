@@ -35,6 +35,11 @@ type Provider struct {
 	// there is no key to configure and demanding one would make the provider
 	// impossible to use.
 	AmbientAuth bool
+
+	// DefaultModel is used when neither --model nor the config names one, so
+	// the preset works without a config entry. Empty keeps the "no model"
+	// error, which is right for providers whose model ids are account-scoped.
+	DefaultModel string
 }
 
 // After modifying the built-in provider registry, run `go generate ./internal/llm`
@@ -43,10 +48,11 @@ var registry = []Provider{
 	{
 		// Claude Code signs in on its own (subscription or whatever `claude`
 		// is logged in with), so the preset carries no URL and no key.
-		Name:        "claude-code",
-		DisplayName: "Claude Code CLI (Claude subscription)",
-		Protocol:    ProtocolClaudeCode,
-		AmbientAuth: true,
+		Name:         "claude-code",
+		DisplayName:  "Claude Code CLI (Claude subscription)",
+		Protocol:     ProtocolClaudeCode,
+		AmbientAuth:  true,
+		DefaultModel: "opus",
 		Models: []string{
 			"sonnet",
 			"opus",
