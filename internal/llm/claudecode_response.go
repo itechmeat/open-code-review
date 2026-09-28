@@ -12,15 +12,16 @@ import (
 )
 
 var (
-	// ErrClaudeCodeNotLoggedIn means the claude CLI has no usable login.
-	ErrClaudeCodeNotLoggedIn = errors.New("claude-code: the claude CLI is not logged in (run `claude` and use /login)")
-	// ErrClaudeCodeUsageLimit means the Claude plan's usage window is exhausted.
-	// It is fatal for the run: every later request would fail the same way.
-	ErrClaudeCodeUsageLimit error = &runFatalError{msg: "claude-code: Claude usage limit reached (wait for the limit window or lower --concurrency)"}
+	// The three account and installation errors below are fatal for the run:
+	// every later request would fail the same way.
 
+	// ErrClaudeCodeNotLoggedIn means the claude CLI has no usable login.
+	ErrClaudeCodeNotLoggedIn error = &runFatalError{msg: "claude-code: the claude CLI is not logged in (run `claude` and use /login)"}
+	// ErrClaudeCodeUsageLimit means the Claude plan's usage window is exhausted.
+	ErrClaudeCodeUsageLimit error = &runFatalError{msg: "claude-code: Claude usage limit reached (wait for the limit window or lower --concurrency)"}
 	// ErrClaudeCodeOutdated means the installed CLI lacks a flag this client
 	// relies on (--json-schema, --effort, --system-prompt-file).
-	ErrClaudeCodeOutdated = errors.New("claude-code: the claude CLI is too old for this provider (update Claude Code; tested with 2.1.280)")
+	ErrClaudeCodeOutdated error = &runFatalError{msg: "claude-code: the claude CLI is too old for this provider (update Claude Code; tested with 2.1.280)"}
 
 	errClaudeCodeUnparsable = errors.New("claude-code: unparsable CLI output")
 )
@@ -131,11 +132,11 @@ func classifyClaudeCodeFailure(message string) error {
 	lower := strings.ToLower(msg)
 	switch {
 	case strings.Contains(lower, "unknown option"):
-		return fmt.Errorf("%w: %s", ErrClaudeCodeOutdated, truncateForError(msg))
+		return &fatalDetail{ErrClaudeCodeOutdated, truncateForError(msg)}
 	case strings.Contains(lower, "not logged in"), strings.Contains(lower, "/login"), strings.Contains(lower, "invalid api key"):
-		return fmt.Errorf("%w: %s", ErrClaudeCodeNotLoggedIn, truncateForError(msg))
+		return &fatalDetail{ErrClaudeCodeNotLoggedIn, truncateForError(msg)}
 	case strings.Contains(lower, "usage limit"), strings.Contains(lower, "hit your limit"), strings.Contains(lower, "rate limit"):
-		return fmt.Errorf("%w: %s", ErrClaudeCodeUsageLimit, truncateForError(msg))
+		return &fatalDetail{ErrClaudeCodeUsageLimit, truncateForError(msg)}
 	default:
 		return fmt.Errorf("claude-code: %s", truncateForError(msg))
 	}

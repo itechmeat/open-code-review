@@ -18,11 +18,12 @@ import (
 )
 
 // limitAfterClient answers the first okCalls requests with ok and every later
-// one with a subscription usage limit.
+// one with fail, a subscription usage limit by default.
 type limitAfterClient struct {
 	okCalls int64
 	ok      func(path string) *llm.ChatResponse
 	path    string
+	fail    error
 	calls   int64 // atomic
 }
 
@@ -30,7 +31,11 @@ func (c *limitAfterClient) CompletionsWithCtx(_ context.Context, _ llm.ChatReque
 	if n := atomic.AddInt64(&c.calls, 1); n <= c.okCalls {
 		return c.ok(c.path), nil
 	}
-	return nil, fmt.Errorf("LLM completion error: %w", llm.ErrClaudeCodeUsageLimit)
+	cause := c.fail
+	if cause == nil {
+		cause = llm.ErrClaudeCodeUsageLimit
+	}
+	return nil, fmt.Errorf("LLM completion error: %w", cause)
 }
 
 func commentAndDone(path string) *llm.ChatResponse {
@@ -116,6 +121,26 @@ func TestDispatchStopsOnFatalErrorAndKeepsReviewedFiles(t *testing.T) {
 		if item.Classification != session.FailureProvider {
 			t.Errorf("item %s class = %q, want provider", item.ItemID, item.Classification)
 		}
+	}
+}
+
+func TestDispatchStopsWhenClaudeCodeIsNotLoggedIn(t *testing.T) {
+	client := &limitAfterClient{okCalls: 1, ok: func(string) *llm.ChatResponse { return agentTaskDoneResponse() }, fail: llm.ErrClaudeCodeNotLoggedIn}
+	a := newRunStopAgent(t, client, perFileTemplate(), 3, "claude-code")
+
+	if _, err := a.dispatchSubtasks(context.Background()); err != nil {
+		t.Fatalf("a run with a reviewed file must not fail: %v", err)
+	}
+	if calls := atomic.LoadInt64(&client.calls); calls != 2 {
+		t.Fatalf("LLM calls = %d, want 2: a missing login must stop dispatch", calls)
+	}
+	msg := a.RunStopMessage()
+	if !strings.HasPrefix(msg, "claude-code cannot serve further requests") || !strings.Contains(msg, "/login") ||
+		strings.Contains(msg, "LLM completion error") || strings.Count(msg, "claude-code") != 1 {
+		t.Fatalf("RunStopMessage() = %q", msg)
+	}
+	if m := finishRunStop(t, a); m.TerminalState != session.StatePartial || len(m.Coverage.Failed) != 2 {
+		t.Fatalf("manifest state=%s failed=%d", m.TerminalState, len(m.Coverage.Failed))
 	}
 }
 
