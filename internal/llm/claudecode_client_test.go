@@ -385,11 +385,19 @@ func TestClaudeCodeClientRetriesUnclassifiedAPIErrorOnce(t *testing.T) {
 }
 
 func TestClaudeCodeClientDoesNotRetryAccountErrors(t *testing.T) {
-	dump := useFakeClaude(t, "error-limit")
-	if _, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest()); err == nil {
-		t.Fatal("expected the usage-limit error")
-	}
-	if calls := readAllFakeDumps(t, dump); len(calls) != 1 {
-		t.Errorf("a usage limit must not be retried, got %d calls", len(calls))
+	for _, mode := range []string{"error-limit", "error-login", "old-cli"} {
+		t.Run(mode, func(t *testing.T) {
+			dump := useFakeClaude(t, mode)
+			_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+			if !errors.Is(err, ErrFatalForRun) {
+				t.Fatalf("err = %v, want a run-fatal error", err)
+			}
+			if strings.Contains(err.Error(), "exit status") {
+				t.Errorf("err = %v, the classified cause needs no process detail", err)
+			}
+			if calls := readAllFakeDumps(t, dump); len(calls) != 1 {
+				t.Errorf("an account error must not be retried, got %d calls", len(calls))
+			}
+		})
 	}
 }
