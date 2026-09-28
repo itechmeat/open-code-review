@@ -15,7 +15,8 @@ var (
 	// ErrClaudeCodeNotLoggedIn means the claude CLI has no usable login.
 	ErrClaudeCodeNotLoggedIn = errors.New("claude-code: the claude CLI is not logged in (run `claude` and use /login)")
 	// ErrClaudeCodeUsageLimit means the Claude plan's usage window is exhausted.
-	ErrClaudeCodeUsageLimit = errors.New("claude-code: Claude usage limit reached (wait for the limit window or lower --concurrency)")
+	// It is fatal for the run: every later request would fail the same way.
+	ErrClaudeCodeUsageLimit error = &runFatalError{msg: "claude-code: Claude usage limit reached (wait for the limit window or lower --concurrency)"}
 
 	// ErrClaudeCodeOutdated means the installed CLI lacks a flag this client
 	// relies on (--json-schema, --effort, --system-prompt-file).
