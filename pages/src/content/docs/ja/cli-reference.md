@@ -127,7 +127,7 @@ ocr r      [flags]   (alias)
 | `--max-tokens <n>` | — | 設定またはテンプレートのデフォルト | サブタスクごとの**プロンプト**トークン上限（review のデフォルトは `200000`）。この実行で保存済みの `max_tokens` 設定を上書きします。出力の上限には影響しません。そちらは `MAX_COMPLETION_TOKENS`（`16384`）が個別に制御します。 |
 | `--max-tokens-budget <n>` | — | `0`（無制限） | レビュー全体の入力 + 出力トークン使用量を制限します。LLM の各ラウンドの前に確認されます: すでに予算を超えたサブタスクには発見を提出するための最終ラウンドが 1 回与えられ、`failed(budget)` として報告されます。以降のサブタスクは割り当てられず、部分的な結果は引き続き公開されます。 |
 | `--effort <level>` | — | 設定または `medium` | レビューの労力プリセット: `low` = main ループ 1 ラウンド、`medium` = 2 ラウンド（デフォルト）、`high` = 3 ラウンド。ラウンドが多いほど recall は上がりますが、時間とトークンも増えます。`ocr config set effort <level>` で永続化できます。 |
-| `--provider <name>` | — | — | 今回の実行で設定済み provider を選択します。`providers` と `custom_providers` の両方の名前を使用できます。 |
+| `--provider <name>` | — | — | 今回の実行で使う provider を選択します。`providers` と `custom_providers` の両方の名前に加え、エントリ不要の組み込みプリセット（[実行単位の LLM 選択](#per-run-llm-selection)を参照）も使用できます。 |
 | `--model <name>` | — | — | 今回の実行で解決済みの LLM model を上書きします（例: `claude-opus-4-6`）。 |
 | `--max-git-procs <n>` | — | `16` | 並行 git サブプロセスの最大数。 |
 | `--tools <path>` | — | 埋め込み | カスタム JSON ツール設定ファイルのパス。埋め込みのツール定義を上書きします。 |
@@ -136,7 +136,7 @@ ocr r      [flags]   (alias)
 > 混在させるとそのままエラーになります。
 > `--resume` は範囲または単一 commit レビューのみ対応し、`--preview` とは併用できません。
 
-### 実行単位の LLM 選択
+### 実行単位の LLM 選択 {#per-run-llm-selection}
 
 `review` と `scan` はどちらも `--provider` と `--model` を受け付けます。
 これらの上書きは現在の呼び出しだけに適用され、保存済み設定は変更しません:
@@ -147,11 +147,32 @@ ocr scan --provider openai --model gpt-5.4 --format json
 ```
 
 明示的な `--provider` は通常のソース解決より先に、保存済みの `providers` または
-`custom_providers` からエントリを選択します。`--provider` を指定しない場合、OCR は従来の
+`custom_providers` からエントリを選択します。組み込みプリセットは、API キーが不要な場合
+（`claude-code`、`bedrock`）またはその API キー環境変数が設定されている場合、エントリも
+設定ファイルも不要です。`--provider` を指定しない場合、OCR は従来の
 ソース順序を維持します: 保存済み設定、完全な `OCR_LLM_*` 環境設定、完全な Claude Code
-環境設定、shell rc ファイルの順です。`--model` は選ばれたソース内の model を上書きしますが、
+環境設定、shell rc ファイル、最後に `PATH` 上の Claude Code CLI（または
+`OCR_CLAUDE_CODE_BIN`）を provider `claude-code`、モデル `opus` として使う順です。
+`--model` は選ばれたソース内の model を上書きしますが、
 ソース順序は変更しません。不完全な戦略は別の戦略と混合されず、次へフォールバックします。
 選択された組み込み provider の認証情報は、対応する環境変数から引き続き取得できます。
+
+```bash
+ocr review --from main --to HEAD                   # 組み込みのデフォルト: claude-code、opus
+ocr review --provider claude-code --model sonnet   # providers.claude-code エントリは不要
+ocr review --provider z-ai-coding --model <id>     # 今回の実行だけ別の provider
+ocr config set provider z-ai-coding                # 永続的なデフォルト
+```
+
+`claude-code` provider は 2 つの環境変数を読み取ります:
+
+| 変数 | デフォルト | 説明 |
+|---|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `PATH` 上の `claude` | Claude Code 実行ファイルのパス。 |
+| `OCR_CLAUDE_CODE_EFFORT` | `low` | `claude` に渡す推論の労力: `low`、`medium`、`high`、`xhigh`、`max`、または `auto`。 |
+
+この provider、そのモデル、API の認証情報を `claude` プロセスから遠ざける仕組みについては
+[設定](../configuration/#claude-code-subscription)を参照してください。
 
 ### モード
 
@@ -334,6 +355,11 @@ ocr review --format json | jq .summary   # stdout は単一の JSON ドキュメ
 | `0` | レビューが完了しました（コメントがゼロの場合や、致命的でない警告がある場合もあります）。 |
 | `1` | 致命的エラー。引数の誤り、LLM エンドポイントを解決できない、すべてのファイルごとのサブエージェントが失敗した、などです。エラーテキストは stderr に出力されます。 |
 | `3` | 部分的なレビュー。結果（指摘、`session_id`、カバレッジ）は出力されましたが、一部の対象ファイルが失敗しました（プロバイダーのレート制限やタイムアウトなど）。stderr にセッションが示されます。失敗したファイルは `ocr review --resume <session-id>` と同じ `--from`/`--to`/`--commit` でレビューしてください。`--max-tokens-budget` だけでスキップされたファイルは数えず、`--allow-partial` を付けると `0` になります。 |
+
+provider が実行全体でリクエストに応じなくなった場合（`claude-code` のサブスクリプション
+使用量上限など）、OCR は以降のグループをディスパッチせず、すでに得られた結果を保持し、
+再開のヒントの前に `[ocr] Run stopped early: <reason>` を出力します。その後 `3` で終了し、
+1 つもファイルがレビューされていなければ `1` で終了します。
 
 致命的でない警告（個々のサブエージェントの失敗、あるファイルが token しきい値を超過、など）はインラインで出力されます。JSON モードでは `warnings` 配列に追加されます。
 
@@ -555,7 +581,7 @@ ocr config model                           Interactive model selection
 ```
 
 - **`set`**: 非対話的に単一の設定値を書き込みます（例: `ocr config set effort high`）。
-- **`get`**: `set` と同じドット区切りの key（`provider`、`providers.<name>.model`、`llm.url` など）で保存済みの値を表示します。文字列はそのまま、オブジェクトは JSON で出力します。`model` は有効なプロバイダーのモデルを返し、key を省略するとファイル全体を表示します。API キー、トークン、トークンに相当するヘッダーや env の値は常にマスクされます。未設定の key は `1` で終了します。
+- **`get`**: `set` と同じドット区切りの key（`provider`、`providers.<name>.model`、`llm.url` など）で保存済みの値を表示します。文字列はそのまま、オブジェクトは JSON で出力します。`model` は有効なプロバイダーのモデルを返し、key を省略するとファイル全体を表示します。API キー、トークン、トークンに相当するヘッダーや env の値は常にマスクされます。未設定の key は `1` で終了します。ただし `provider` は例外で、provider が保存されておらず `claude` 実行ファイルが見つかる場合は `claude-code` を出力し、その出所を stderr で説明します。
 - **`unset`**: 保存済みの設定値をクリアします。`provider`、`max_tokens`、`effort`、`custom_providers.<name>`、`mcp_servers.<name>` をサポートします。削除するものが現在有効なカスタムプロバイダーの場合、`provider` と `model` もクリアされます（`ocr config provider` を実行して再選択してください）。`ocr config unset effort` はデフォルトの `medium` プリセットに戻します。
 - **`provider`**: 対話的なプロバイダー設定 TUI を起動します（追加の引数なし。非対話的には `ocr config set provider <name>` を使用してください）。
 - **`model`**: 対話的な model 選択 TUI を起動します（追加の引数なし。非対話的には `ocr config set model <name>` を使用してください）。
@@ -577,8 +603,13 @@ Sub-commands:
 ### `ocr llm test`
 
 ```text
-ocr llm test
+ocr llm test [--provider <name>] [--model <name>]
 ```
+
+| フラグ | 説明 |
+|---|---|
+| `--provider <name>` | デフォルトの代わりにこの provider をテストします。エントリ不要の組み込みプリセット（[実行単位の LLM 選択](#per-run-llm-selection)を参照）はエントリなしで使えます。 |
+| `--model <name>` | このテストのモデルを上書きします。 |
 
 `ocr review` とまったく同じ方法で LLM エンドポイントを解決し、[`internal/config/testconnection/task.json`](https://github.com/alibaba/open-code-review/blob/main/internal/config/testconnection/task.json) からあらかじめ用意された chat リクエストを送信して、以下を出力します:
 
@@ -589,6 +620,8 @@ Model:  <effective model>
 <the model's reply>
 ✓ Connection test successful
 ```
+
+`claude-code` では `URL:` 行が `CLI:` に置き換わり、解決された `claude` 実行ファイルを表示します。provider が組み込みのデフォルトから選ばれた場合、`Source:` は `claude CLI on PATH` です。`bedrock` では `Region:` と `Profile:` に置き換わります。
 
 非ゼロで終了した場合は、エンドポイントが完全に設定されていないか、リクエストが失敗した（ネットワーク / 認証 / モデルのエラー）ことを意味します。エラーメッセージがどのケースかを示します。
 
