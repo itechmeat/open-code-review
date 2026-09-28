@@ -209,7 +209,10 @@ Claude Code がサブスクリプションの使用量上限を報告すると�
 設定ファイルが常に優先されます。設定ファイルが provider を指定している場合は、
 設定に誤りがあってもその provider のエラーがそのまま返され、途中までしか書かれて
 いない `llm` ブロックもエラーとして報告されます。どちらも Claude Code に
-フォールバックしません。provider が未設定のとき、`ocr config get provider` は
+フォールバックしません。`OCR_LLM_URL` / `OCR_LLM_TOKEN` や
+`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` だけが設定され、エンドポイントの
+残りが欠けている場合も同じで、Claude のログインでレビューする代わりに、
+エラーがそれらの変数を示します。provider が未設定のとき、`ocr config get provider` は
 `claude-code` を出力し、その出所を stderr で説明します。
 
 `ocr review`、`ocr scan`、`ocr llm test` の `--provider <preset>` は、設定を変えずに

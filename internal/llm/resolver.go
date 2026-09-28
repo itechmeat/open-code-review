@@ -125,6 +125,7 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 		return finalizeResolvedEndpoint("OCR config file", ep, env), nil
 	}
 
+	var partial []string
 	strategies := []struct {
 		name string
 		fn   func() (ResolvedEndpoint, bool, error)
@@ -134,9 +135,9 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 		{"Claude Code environment", func() (ResolvedEndpoint, bool, error) { return tryCCEnv(opts.Model) }},
 		{"Shell rc file", func() (ResolvedEndpoint, bool, error) { return tryShellRC(opts.Model) }},
 		{"Claude Code CLI", func() (ResolvedEndpoint, bool, error) {
-			// A half-filled llm block is a config mistake to report, not a
-			// reason to review on another account.
-			if legacyLlmBlockStarted(configPath) {
+			// A half-configured endpoint is a mistake to report, not a reason to
+			// review on another account.
+			if partial = partialEndpointSources(configPath); len(partial) > 0 {
 				return ResolvedEndpoint{}, false, nil
 			}
 			return tryClaudeCodeFallback(opts.Model)
@@ -156,8 +157,27 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 		}
 	}
 
-	return ResolvedEndpoint{}, fmt.Errorf("no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL, ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL must be set\n" +
-		"installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work")
+	hint := "installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work"
+	if len(partial) > 0 {
+		hint = fmt.Sprintf("an endpoint is only partly configured (%s): complete or unset it; the Claude Code fallback is not used meanwhile", strings.Join(partial, ", "))
+	}
+	return ResolvedEndpoint{}, fmt.Errorf("no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL, ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL must be set\n%s", hint)
+}
+
+// partialEndpointSources names the endpoint settings that are started but did
+// not resolve: a legacy llm block and the URL/token environment variables.
+// It is only meaningful once every other strategy has failed to resolve.
+func partialEndpointSources(configPath string) []string {
+	var out []string
+	if legacyLlmBlockStarted(configPath) {
+		out = append(out, "llm block in "+configPath)
+	}
+	for _, key := range []string{envOCRLLMURL, envOCRLLMToken, envCCBaseURL, envCCToken} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			out = append(out, key)
+		}
+	}
+	return out
 }
 
 // presetUsableWithoutEntry reports whether a preset can resolve without a
