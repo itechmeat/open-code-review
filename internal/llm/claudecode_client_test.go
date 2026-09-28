@@ -215,22 +215,35 @@ func TestClaudeCodeClientScrubsBillingEnv(t *testing.T) {
 }
 
 func TestClaudeCodeEnv(t *testing.T) {
-	scrubbed := []string{
-		"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_CUSTOM_HEADERS",
-		"CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
-		"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL",
-		"ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
-		"CLAUDECODE", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
-		"CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CMUX_SURFACE_ID",
+	tests := []struct {
+		key  string
+		keep bool
+	}{
+		{"ANTHROPIC_API_KEY", false},
+		{"ANTHROPIC_UNIX_SOCKET", false},
+		{"ANTHROPIC_FOUNDRY_API_KEY", false},
+		{"ANTHROPIC_DEFAULT_FABLE_MODEL", false},
+		{"anthropic_base_url", false},
+		{"CLAUDE_CODE_USE_GATEWAY", false},
+		{"CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD", false},
+		{"CLAUDE_CODE_API_BASE_URL", false},
+		{"CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR", false},
+		{"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST", false},
+		{"CLAUDECODE", false},
+		{"CLAUDE_CODE_SESSION_ID", false},
+		{"CMUX_SURFACE_ID", false},
+		{"ANTHROPIC_LOG", true},
+		{"CLAUDE_CODE_OAUTH_TOKEN", true},
+		{"CLAUDE_CONFIG_DIR", true},
+		{"HTTPS_PROXY", true},
+		{"NO_PROXY", true},
+		{"PATH", true},
 	}
-	in := []string{"PATH=/bin", "ANTHROPIC_API_KEY_HELPER=keep"}
-	for _, k := range scrubbed {
-		in = append(in, k+"=x")
-	}
-	got := claudeCodeEnv(in)
-	want := []string{"PATH=/bin", "ANTHROPIC_API_KEY_HELPER=keep"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("env = %q, want %q", got, want)
+	for _, tt := range tests {
+		got := claudeCodeEnv([]string{tt.key + "=x"})
+		if kept := len(got) == 1; kept != tt.keep {
+			t.Errorf("%s: kept = %v, want %v", tt.key, kept, tt.keep)
+		}
 	}
 }
 

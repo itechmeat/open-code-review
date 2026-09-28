@@ -108,8 +108,9 @@ claude -p
 - **Working directory**: a per-process temp dir, removed afterwards, so no
   project `CLAUDE.md` / `AGENTS.md` is picked up.
 - **Environment** (model remaps, Foundry and parent-session identity were
-  added after review; `claudeCodeScrubbedEnv` in `claudecode_client.go` holds
-  the full, current list): the
+  added after review; `claudeCodeEnv` in `claudecode_client.go` holds the
+  current rules: every `ANTHROPIC_*` but `ANTHROPIC_LOG`, `CLAUDE_CODE_USE_*`,
+  `CLAUDE_CODE_API_*`, plus a short list of single names): the
   child inherits the parent environment except
   `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` /
   `CLAUDE_CODE_USE_VERTEX`, which would silently switch Claude Code from the
