@@ -45,7 +45,18 @@ var llmProvidersCmd = &cobra.Command{
 	},
 }
 
+// llmTestOptions lets the probe target a provider other than the configured
+// default, the only way to check one before switching to it.
+type llmTestOptions struct {
+	provider string
+	model    string
+}
+
+var llmTestOpts llmTestOptions
+
 func init() {
+	llmTestCmd.Flags().StringVar(&llmTestOpts.provider, "provider", "", "test this configured provider instead of the default")
+	llmTestCmd.Flags().StringVar(&llmTestOpts.model, "model", "", "override the model for this test")
 	llmCmd.AddCommand(llmTestCmd)
 	llmCmd.AddCommand(llmProvidersCmd)
 }
@@ -66,7 +77,10 @@ func runLLMTestWithConfigPath(configPath string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	ep, err := llm.ResolveEndpoint(configPath)
+	ep, err := llm.ResolveEndpointWithOptions(configPath, llm.ResolveOptions{
+		Provider: llmTestOpts.provider,
+		Model:    llmTestOpts.model,
+	})
 	if err != nil {
 		return fmt.Errorf("resolve LLM endpoint: %w", err)
 	}
@@ -148,6 +162,14 @@ func runLLMTestWithConfigPath(configPath string) error {
 		} else {
 			fmt.Printf("Profile: (from the ambient AWS chain)\n")
 		}
+	} else if ep.Protocol == llm.ProtocolClaudeCode {
+		// No URL either: name the claude executable that answered, since PATH
+		// may hold a wrapper or a different install than the user expects.
+		bin, err := llm.ClaudeCodeBinary()
+		if err != nil {
+			bin = err.Error()
+		}
+		fmt.Printf("CLI:    %s\n", bin)
 	} else {
 		fmt.Printf("URL:    %s\n", ep.URL)
 	}
