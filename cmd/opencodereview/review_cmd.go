@@ -172,6 +172,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	if err != nil {
 		return err
 	}
+	defer closeLLMClient(rt.Client)
 	maxTokens, err := resolveMaxTokens(cc.Template.MaxTokens, rt.AppCfg, opts.maxTokens)
 	if err != nil {
 		return err
