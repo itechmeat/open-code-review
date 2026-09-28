@@ -43,7 +43,11 @@ func (c *ClaudeCodeClient) completeInThread(ctx context.Context, bin string, req
 			c.remember(req, inv, th.sessionID)
 			return resp, nil
 		}
-		if ctx.Err() != nil || errors.Is(err, ErrFatalForRun) {
+		// A throttled resume is retried by the caller as a resume. The failed
+		// attempt may have left its delta and an error turn in the session, so
+		// the model can see the delta twice; that costs one delta, while a fresh
+		// session would resend the whole history into the same throttle.
+		if ctx.Err() != nil || errors.Is(err, ErrFatalForRun) || errors.Is(err, ErrClaudeCodeRateLimited) {
 			return nil, err
 		}
 		// Anything else (a lost or unreadable session) gets one full retry.
