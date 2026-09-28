@@ -56,19 +56,26 @@ func runConfigGet(w, errW io.Writer, configPath, key string) error {
 		}
 	}
 
+	noFile := fmt.Errorf("no config file at %s; run `ocr config provider` first", configPath)
+	if missing && key != "provider" {
+		return noFile
+	}
+
 	value, found, secret := lookupConfigValue(root, key)
 	if !found || (key == "provider" && value == "") {
 		if key == "provider" {
-			if ep, ok := llm.ClaudeCodeFallback(); ok {
+			// Only the claude-code fallback has a provider name when the file sets
+			// none; the other sources (llm block, OCR_LLM_*, ANTHROPIC_*) have not.
+			if ep, ok := llm.ClaudeCodeDefault(configPath); ok {
 				// stdout stays the bare value for scripts; the why goes to stderr.
-				fmt.Fprintf(errW, "[ocr] provider is not set in %s; the built-in default is %s (source: %s) unless OCR_LLM_*, ANTHROPIC_* or an llm block configure an endpoint\n",
+				fmt.Fprintf(errW, "[ocr] provider is not set in %s and no other endpoint is configured; reviews use the built-in default %s (source: %s)\n",
 					configPath, ep.Provider, ep.Source)
 				_, err := fmt.Fprintln(w, ep.Provider)
 				return err
 			}
 		}
 		if missing {
-			return fmt.Errorf("no config file at %s; run `ocr config provider` first", configPath)
+			return noFile
 		}
 		return fmt.Errorf("config key %q is not set", key)
 	}
