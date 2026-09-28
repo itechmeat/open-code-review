@@ -4,37 +4,18 @@
 package agent
 
 import (
-	"errors"
-	"fmt"
-	"strings"
-	"sync"
-
 	"github.com/alibaba/open-code-review/internal/llm"
 	"github.com/alibaba/open-code-review/internal/session"
 )
 
-// runStop records the first provider error that makes every further request
-// of the run fail. Dispatch stops on it; groups already in flight finish or
-// fail on their own, so nothing that is still working gets cancelled.
-type runStop struct {
-	mu  sync.Mutex
-	err error
-}
-
 // stopRunOn records err when it is fatal for the run and reports whether it
-// was. Only the first fatal error is announced and stored.
+// was. Dispatch stops on it; groups already in flight finish or fail on their
+// own, so nothing that is still working gets cancelled. Only the first fatal
+// error is announced.
 func (a *Agent) stopRunOn(err error) bool {
-	if err == nil || !errors.Is(err, llm.ErrFatalForRun) {
-		return false
-	}
-	a.stop.mu.Lock()
-	first := a.stop.err == nil
-	if first {
-		a.stop.err = err
-	}
-	a.stop.mu.Unlock()
+	fatal, first := a.stop.Record(err)
 	if !first {
-		return true
+		return fatal
 	}
 
 	a.recordWarning("run_stopped", "", a.RunStopMessage())
@@ -48,29 +29,11 @@ func (a *Agent) stopRunOn(err error) bool {
 	return true
 }
 
-func (a *Agent) stopProvider() string {
-	if a.args.Provider != "" {
-		return a.args.Provider
-	}
-	return "the LLM provider"
-}
-
 // RunStopMessage describes why dispatch stopped early, or returns "" when it
 // did not. The caller prints it once, next to the resume hint.
 func (a *Agent) RunStopMessage() string {
-	err := a.StoppedBy()
-	if err == nil {
-		return ""
-	}
-	provider := a.stopProvider()
-	// Provider sentinels already start with the provider name.
-	cause := strings.TrimPrefix(llm.FatalCause(err).Error(), provider+": ")
-	return fmt.Sprintf("%s cannot serve further requests, so the remaining files were not dispatched: %s", provider, cause)
+	return llm.RunStopMessage(a.args.Provider, a.StoppedBy())
 }
 
 // StoppedBy returns the provider error that stopped dispatch early, or nil.
-func (a *Agent) StoppedBy() error {
-	a.stop.mu.Lock()
-	defer a.stop.mu.Unlock()
-	return a.stop.err
-}
+func (a *Agent) StoppedBy() error { return a.stop.Err() }
