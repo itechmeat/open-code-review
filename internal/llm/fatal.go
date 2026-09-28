@@ -18,3 +18,27 @@ type runFatalError struct{ msg string }
 func (e *runFatalError) Error() string { return e.msg }
 
 func (e *runFatalError) Is(target error) bool { return target == ErrFatalForRun }
+
+// fatalDetail pairs a run-fatal sentinel with the provider's own message.
+type fatalDetail struct {
+	sentinel error
+	detail   string
+}
+
+func (e *fatalDetail) Error() string { return e.sentinel.Error() + ": " + e.detail }
+
+func (e *fatalDetail) Unwrap() error { return e.sentinel }
+
+// FatalCause returns the part of err that made it fatal for the run, without
+// the context added on its way up, or err itself when it is not run-fatal.
+func FatalCause(err error) error {
+	var d *fatalDetail
+	if errors.As(err, &d) {
+		return d
+	}
+	var f *runFatalError
+	if errors.As(err, &f) {
+		return f
+	}
+	return err
+}
