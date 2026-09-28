@@ -42,6 +42,7 @@ ocr config set providers.anthropic.api_key sk-ant-xxxxxxxxxx
 
 | 名称 | プロトコル | Base URL | API key 環境変数 |
 |---|---|---|---|
+| `claude-code` | claude-code | —（ローカルの `claude` CLI を実行） | —（Claude Code のログイン） |
 | `anthropic` | anthropic | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | `bedrock` | anthropic-bedrock | `aws_region` から決定 | —（AWS 認証情報チェーン） |
 | `openai` | openai | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
@@ -135,6 +136,96 @@ Model:  claude-sonnet-5
 ブロックは URL とトークンを 1 つずつ記述するもので、リージョンやプロファイルを
 置く場所がなく、bedrock はそこにある値をどちらも使いません。そのため黙って
 無視するのではなく、明示的に拒否されます。
+
+### Claude Code（サブスクリプション） {#claude-code-subscription}
+
+`claude-code` は、マシンにインストールされた Claude Code CLI ですべてのリクエストを
+処理します。OCR はユーザー自身がインストールした無改変の `claude -p` を実行するため、
+レビューの料金は `claude` がログインしているアカウント、通常は Claude
+サブスクリプションに計上されます。URL、API キー、設定エントリはいずれも不要で、
+OCR が Claude の認証情報を読み取ることはありません。
+
+これは組み込みのデフォルトでもあります。ほかのどのソースもエンドポイントを設定して
+おらず（[provider の解決順序](#provider-resolution-order)を参照）、`claude`
+実行ファイルが見つかった場合、OCR は `claude-code` と `opus` モデルでレビューします。
+
+```bash
+ocr review --from main --to HEAD                    # 設定ファイルは不要
+ocr review --provider claude-code --model sonnet    # 今回の実行だけ別のモデル
+ocr config set provider claude-code                 # 設定ファイルに固定する
+```
+
+モデルにはエイリアス（`opus`、`sonnet`、`haiku`、`fable`）または完全なモデル ID を
+指定します。この provider はどの `--model` の値も受け付け、使えるかどうかは `claude`
+のログインが決めます。
+
+| 変数 | 意味 |
+|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `claude` 実行ファイルのパス。デフォルトは `PATH` 上の `claude`。 |
+| `OCR_CLAUDE_CODE_EFFORT` | Claude Code に渡す推論の労力: `low`（デフォルト）、`medium`、`high`、`xhigh`、`max`、または Claude Code に任せる `auto`。 |
+
+`claude` プロセスは `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
+`ANTHROPIC_BASE_URL`、`ANTHROPIC_CUSTOM_HEADERS`、
+`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
+`CLAUDE_CODE_USE_FOUNDRY` の切り替え、`ANTHROPIC_*MODEL` の上書きを取り除いた
+環境で起動します。そのため、シェルでエクスポートされたキーやゲートウェイによって、
+レビューの課金がサブスクリプションから API へ黙って切り替わることはありません。
+Anthropic の規約では、サブスクリプションの利用は無改変の Claude Code
+バイナリを通じてのみ認められています。詳しくは
+[Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance) を参照してください。
+
+`ocr llm test` は URL の代わりに実行ファイルを表示します:
+
+```
+Source: claude CLI on PATH
+CLI:    /usr/local/bin/claude
+Model:  opus
+✓ Connection test successful
+```
+
+`OCR_CLAUDE_CODE_BIN` が実行ファイルを決めた場合、`Source:` は
+`OCR_CLAUDE_CODE_BIN` になり、provider が `--provider` または設定ファイルで
+選ばれた場合は `provider:claude-code` になります。
+
+Claude Code がサブスクリプションの使用量上限を報告すると、`ocr review` は残りの
+グループのディスパッチを止め、すでに得られた結果を保持し、
+`[ocr] Run stopped early: ...` を出力して、`ocr review --resume <id>` のヒントとともに
+`3` で終了します（まだ何もレビューされていなければ `1` で終了）。上限のウィンドウが
+リセットされてから再開するか、`--concurrency` を下げてください。`ocr scan` はまだ
+このメッセージを出力しません。
+
+### provider の解決順序 {#provider-resolution-order}
+
+`--provider` を指定しない場合、OCR は完全なエンドポイントを得られた最初のソースを
+使います:
+
+1. 設定ファイル `~/.opencodereview/config.json`（`provider`、または従来の `llm` ブロック）。
+2. `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`。
+3. `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`。
+4. shell rc ファイル内の同じエクスポート。
+5. `PATH` 上の Claude Code CLI（または `OCR_CLAUDE_CODE_BIN`）: provider `claude-code`、モデル `opus`。
+
+設定ファイルが常に優先されます。設定ファイルが provider を指定している場合は、
+設定に誤りがあってもその provider のエラーがそのまま返され、途中までしか書かれて
+いない `llm` ブロックもエラーとして報告されます。どちらも Claude Code に
+フォールバックしません。provider が未設定のとき、`ocr config get provider` は
+`claude-code` を出力し、その出所を stderr で説明します。
+
+`ocr review`、`ocr scan`、`ocr llm test` の `--provider <preset>` は、設定を変えずに
+今回の実行の provider を選びます。組み込みプリセットは、API キーが不要な場合
+（`claude-code`、`bedrock`）またはその API キー環境変数が設定されている場合、
+`providers.<name>` エントリがなくても、設定ファイルがなくても動作します。モデルは
+`--model`、エントリの `model`、トップレベルの `model`（`--provider` が設定済みの
+provider を指す場合にのみ保持）、プリセットのデフォルトの順に決まります。
+デフォルトを持つのは `claude-code` だけなので、`bedrock` には引き続き `--model` が
+必要です。`--model` はプリセットのモデル一覧、エントリの `models`、そしてエントリまたは
+トップレベルの `model` に設定されたモデルを受け付けます。プリセット一覧にまだない
+モデルでも構いません。
+
+```bash
+ocr review --provider z-ai-coding --model <id>    # 今回の実行だけ別の provider
+ocr config set provider z-ai-coding               # デフォルトにする
+```
 
 ### カスタム provider
 
@@ -363,7 +454,8 @@ ocr llm test
 
 Claude Code の `ANTHROPIC_*` や OCR 独自の `OCR_LLM_*` 環境変数をすでに
 設定している場合、OCR はそれらを自動的に認識するため、設定ファイルを書く
-必要はありません。
+必要はありません。設定ファイルや Claude Code のデフォルトとの優先関係は
+[provider の解決順序](#provider-resolution-order)を参照してください。
 
 ### CC-Switch を使う
 

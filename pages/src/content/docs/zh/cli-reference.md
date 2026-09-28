@@ -128,7 +128,7 @@ unstaged + untracked 变更。
 | `--max-tokens <n>` | — | 配置或模板默认 | 每个子任务的**提示词** token 上限（review 默认 `200000`）。覆盖本次运行已保存的 `max_tokens` 设置。不影响输出上限——那由 `MAX_COMPLETION_TOKENS`（`16384`）单独控制。 |
 | `--max-tokens-budget <n>` | — | `0`（无限制） | 限制本次评审的输入 + 输出 token 总量。每次 LLM 轮次前都会检查：已超出预算的子任务会获得最后一轮来提交发现，并记为 `failed(budget)`；不再分发新的子任务，部分结果仍会发布。 |
 | `--effort <level>` | — | 配置或 `medium` | 评审投入档位：`low` = 1 轮 main 循环，`medium` = 2 轮（默认），`high` = 3 轮。轮数越多召回越高、耗时与 token 也越多。可用 `ocr config set effort <level>` 持久化。 |
-| `--provider <name>` | — | — | 为本次运行选择已配置的 provider。支持 `providers` 和 `custom_providers` 中的名称。 |
+| `--provider <name>` | — | — | 为本次运行选择 provider。支持 `providers` 和 `custom_providers` 中的名称，也支持无需条目的内置预设（见[单次运行的 LLM 选择](#per-run-llm-selection)）。 |
 | `--model <name>` | — | — | 为本次运行覆盖已解析出的 LLM model（如 `claude-opus-4-6`）。 |
 | `--max-git-procs <n>` | — | `16` | 并发 git 子进程的最大数。 |
 | `--tools <path>` | — | 内嵌 | 自定义 JSON 工具配置文件路径。覆盖内嵌工具定义。 |
@@ -137,7 +137,7 @@ unstaged + untracked 变更。
 > 混用会直接报错。
 > `--resume` 仅支持区间或单 commit 评审，不能与 `--preview` 同时使用。
 
-### 单次运行的 LLM 选择
+### 单次运行的 LLM 选择 {#per-run-llm-selection}
 
 `review` 和 `scan` 都接受 `--provider` 与 `--model`。这些覆盖仅作用于当前调用，
 不会修改已保存的配置：
@@ -148,14 +148,34 @@ ocr scan --provider openai --model gpt-5.4 --format json
 ```
 
 显式 `--provider` 会在常规来源解析前，从已保存的 `providers` 或 `custom_providers`
-中选择条目。不传 `--provider` 时，OCR 保持原有来源顺序：已保存的配置、完整的
-`OCR_LLM_*` 环境配置、完整的 Claude Code 环境配置、shell rc 文件。`--model` 会覆盖
+中选择条目。内置预设在不需要 API key（`claude-code`、`bedrock`）或其 API key 环境变量
+已设置时，无需条目，也无需配置文件。不传 `--provider` 时，OCR 保持原有来源顺序：
+已保存的配置、完整的 `OCR_LLM_*` 环境配置、完整的 Claude Code 环境配置、shell rc
+文件，最后是 `PATH` 上的 Claude Code CLI（或 `OCR_CLAUDE_CODE_BIN`），即 provider
+`claude-code`、模型 `opus`。`--model` 会覆盖
 最终选中来源中的 model，但不会改变来源顺序。不完整的策略会继续回退，而不会与其他策略
 混合。选中的内置 provider 仍可从其支持的环境变量读取凭据。
 
 对于内置 provider，`--model` 不受 `ocr config model` 的建议模型列表限制。
 如果模型既不在内置列表中，也不在 `providers.<name>.models` 中，OCR 会向 stderr
 输出警告，并交由 provider 验证。自定义 provider 仍遵循原有的 `--model` 校验规则。
+
+```bash
+ocr review --from main --to HEAD                   # 内置默认：claude-code、opus
+ocr review --provider claude-code --model sonnet   # 无需 providers.claude-code 条目
+ocr review --provider z-ai-coding --model <id>     # 仅本次运行使用另一个 provider
+ocr config set provider z-ai-coding                # 持久的默认值
+```
+
+`claude-code` provider 读取两个环境变量：
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `PATH` 上的 `claude` | Claude Code 可执行文件的路径。 |
+| `OCR_CLAUDE_CODE_EFFORT` | `low` | 传给 `claude` 的推理强度：`low`、`medium`、`high`、`xhigh`、`max` 或 `auto`。 |
+
+该 provider、其模型以及它如何让 API 凭据远离 `claude` 进程，见
+[配置](../configuration/#claude-code-subscription)。
 
 ### 模式
 
@@ -338,6 +358,10 @@ ocr review --format json | jq .summary   # stdout 是单个 JSON 文档
 | `0` | 评审完成（可能零评论，可能有非致命警告）。 |
 | `1` | 致命错误——参数错误、无法解析 LLM 端点、所有 per-file 子 agent 失败等。错误文本打印到 stderr。 |
 | `3` | 部分评审——结果（发现、`session_id`、覆盖率）已输出，但部分选中文件失败（如 provider 限流或超时）。stderr 给出会话 ID；用 `ocr review --resume <session-id>` 加相同的 `--from`/`--to`/`--commit` 评审失败的文件。仅因 `--max-tokens-budget` 跳过的文件不计入，`--allow-partial` 会改为 `0`。 |
+
+当 provider 在整个运行中停止服务（例如 `claude-code` 的订阅用量上限）时，OCR 不再分发
+后续分组，保留已经得到的结果，并在续跑提示之前打印 `[ocr] Run stopped early: <reason>`。
+随后运行以 `3` 退出；若没有任何文件完成评审，则以 `1` 退出。
 
 非致命警告（单个子 agent 失败、某文件超过 token 阈值等）内联打印；JSON 模式下
 会加入 `warnings` 数组。
@@ -554,7 +578,7 @@ ocr config model                           Interactive model selection
 
 - **`set`**——非交互式写入单个配置值（如
   `ocr config set effort high`）。
-- **`get`**——按 `set` 使用的点分 key（`provider`、`providers.<name>.model`、`llm.url` 等）打印已保存的值。字符串按纯文本输出，对象按 JSON 输出；`model` 给出当前 provider 的模型，不带 key 时打印整个文件。API key、token 以及类似 token 的 header 和 env 值始终被遮蔽。未设置的 key 以 `1` 退出。
+- **`get`**——按 `set` 使用的点分 key（`provider`、`providers.<name>.model`、`llm.url` 等）打印已保存的值。字符串按纯文本输出，对象按 JSON 输出；`model` 给出当前 provider 的模型，不带 key 时打印整个文件。API key、token 以及类似 token 的 header 和 env 值始终被遮蔽。未设置的 key 以 `1` 退出，`provider` 除外：未保存 provider 且能找到 `claude` 可执行文件时，它打印 `claude-code`，并在 stderr 上说明来源。
 - **`unset`**——清除一个已保存的配置值。支持 `provider`、`max_tokens`、
   `effort`、`custom_providers.<name>` 和 `mcp_servers.<name>`。删除当前启用的
   自定义 provider 时，`provider` 和 `model` 一并被清空（运行
@@ -582,8 +606,13 @@ Sub-commands:
 ### `ocr llm test`
 
 ```text
-ocr llm test
+ocr llm test [--provider <name>] [--model <name>]
 ```
+
+| 参数 | 说明 |
+|---|---|
+| `--provider <name>` | 测试该 provider 而不是默认的 provider。无需条目的内置预设（见[单次运行的 LLM 选择](#per-run-llm-selection)）不需要条目即可使用。 |
+| `--model <name>` | 为本次测试覆盖模型。 |
 
 以与 `ocr review` 完全相同的方式解析 LLM 端点，从
 [`internal/config/testconnection/task.json`](https://github.com/alibaba/open-code-review/blob/main/internal/config/testconnection/task.json)
@@ -596,6 +625,10 @@ Model:  <effective model>
 <the model's reply>
 ✓ Connection test successful
 ```
+
+对于 `claude-code`，`URL:` 行会换成 `CLI:`，显示解析出的 `claude` 可执行文件；
+当 provider 来自内置默认值时，`Source:` 显示 `claude CLI on PATH`。对于 `bedrock`，
+该行会换成 `Region:` 和 `Profile:`。
 
 非零退出意味着端点未完整配置，或请求失败（网络 / 鉴权 / 模型错误）。错误信息
 会指明具体是哪一种。
