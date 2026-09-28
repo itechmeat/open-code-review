@@ -6,6 +6,7 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/alibaba/open-code-review/internal/llm"
@@ -36,7 +37,7 @@ func (a *Agent) stopRunOn(err error) bool {
 		return true
 	}
 
-	a.recordWarning("run_stopped", "", fmt.Sprintf("%s: %v", a.stopProvider(), err))
+	a.recordWarning("run_stopped", "", a.RunStopMessage())
 	// A pending cause rather than a run failure: the files already reviewed
 	// stay valid, so the terminal state follows coverage (partial, exit 3).
 	if b := a.session.Manifest(); b != nil {
@@ -61,7 +62,10 @@ func (a *Agent) RunStopMessage() string {
 	if err == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s stopped serving requests (%v); the remaining files were not dispatched", a.stopProvider(), err)
+	provider := a.stopProvider()
+	// Provider sentinels already start with the provider name.
+	cause := strings.TrimPrefix(llm.FatalCause(err).Error(), provider+": ")
+	return fmt.Sprintf("%s cannot serve further requests, so the remaining files were not dispatched: %s", provider, cause)
 }
 
 // StoppedBy returns the provider error that stopped dispatch early, or nil.
