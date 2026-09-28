@@ -122,7 +122,7 @@ npm install -g @alibaba-group/open-code-review
 
 **1. LLMの設定**
 
-コードレビューの前にLLMの設定が必要です。[デリゲートモード](https://open-codereview.ai/docs/delegate)を使用する場合は不要です。
+Claude Code CLI（`claude`）がインストール済みでログインしていれば、設定は不要です。ほかに何も設定されていない場合、OCRは `claude-code` プロバイダーを通じてClaudeサブスクリプションでレビューし、モデルは `opus` です。それ以外の場合は、コードレビューの前にLLMの設定が必要です。[デリゲートモード](https://open-codereview.ai/docs/delegate)を使用する場合は不要です。
 
 - **OCR がモデルを呼び出す場合:** `ocr review`、`/open-code-review:review` コマンド、`open-code-review` スキルは、Claude Code Team/Pro サブスクリプションのログインではなく、OCR 側のプロバイダー設定を使用します。認証要件はプロバイダーによって異なります。[設定](https://open-codereview.ai/docs/configuration)を参照してください。
 - **ホストエージェントがモデルを呼び出す場合:** `/open-code-review:delegate-review` コマンドと `open-code-review-delegate` スキルは、ホストエージェントに設定されたモデルと認証方式を使用します。OCR 側で LLM や認証情報を別途設定する必要はありません。[Claude Code のインストール手順](../../plugins/open-code-review/README.md#claude-code)を参照してください。
@@ -137,6 +137,8 @@ ocr config model             # アクティブなプロバイダーのモデル�
 対話的UIがプロバイダーの選択、APIキーの入力、モデル設定をガイドし、完了後に自動的に接続テストを行います。
 
 CLIセットアップ、環境変数、カスタムプロバイダーなどの高度な設定については、[設定ガイド](https://open-codereview.ai/docs/configuration)を参照してください。
+
+`--provider` と `--model` で1回の実行だけプロバイダーやモデルを切り替えられます（`ocr review --provider claude-code --model sonnet`）。デフォルトを変更するには `ocr config set provider <name>` を使います。
 
 **2. レビュー**
 
