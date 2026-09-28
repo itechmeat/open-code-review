@@ -209,8 +209,10 @@ is reported as an error; neither falls back to Claude Code. The same holds for
 `OCR_LLM_URL` / `OCR_LLM_TOKEN` or `ANTHROPIC_BASE_URL` /
 `ANTHROPIC_AUTH_TOKEN` set without the rest of their endpoint: the error names
 them instead of reviewing on the Claude login.
-`ocr config get provider` prints `claude-code` when no provider is set and
-explains the source on stderr.
+`ocr config get provider` prints `claude-code` only when a review would fall
+back to it, and explains the source on stderr; while an `llm` block,
+`OCR_LLM_*` or `ANTHROPIC_*` configures the endpoint it reports that no
+provider is set.
 
 `--provider <preset>` on `ocr review`, `ocr scan` and `ocr llm test` selects a
 provider for one run without changing the config. A built-in preset works

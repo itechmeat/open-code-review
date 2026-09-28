@@ -207,8 +207,11 @@ Claude Code がサブスクリプションの使用量上限を報告すると�
 フォールバックしません。`OCR_LLM_URL` / `OCR_LLM_TOKEN` や
 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` だけが設定され、エンドポイントの
 残りが欠けている場合も同じで、Claude のログインでレビューする代わりに、
-エラーがそれらの変数を示します。provider が未設定のとき、`ocr config get provider` は
-`claude-code` を出力し、その出所を stderr で説明します。
+エラーがそれらの変数を示します。
+`ocr config get provider` は、レビューが実際に `claude-code` へフォールバックする
+場合にだけそれを出力し、その出所を stderr で説明します。`llm` ブロック、
+`OCR_LLM_*`、`ANTHROPIC_*` がエンドポイントを構成している間は、provider が
+未設定であることを報告します。
 
 `ocr review`、`ocr scan`、`ocr llm test` の `--provider <preset>` は、設定を変えずに
 今回の実行の provider を選びます。組み込みプリセットは、API キーが不要な場合

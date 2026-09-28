@@ -128,6 +128,7 @@ func TestIsSecretConfigName(t *testing.T) {
 }
 
 func TestConfigGetProviderReportsClaudeCodeFallback(t *testing.T) {
+	clearEndpointEnv(t)
 	bin := filepath.Join(t.TempDir(), "claude")
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -157,12 +158,41 @@ func TestConfigGetProviderReportsClaudeCodeFallback(t *testing.T) {
 			t.Fatalf("get provider = %q, %v", got, err)
 		}
 	})
+	for name, body := range map[string]string{
+		"complete llm block": `{"llm":{"url":"https://llm.example.test","auth_token":"t","model":"m"}}`,
+		"half llm block":     `{"llm":{"url":"https://llm.example.test"}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got, err := configGet(t, writeRawConfigFile(t, body), "provider"); err == nil || !strings.Contains(err.Error(), "not set") {
+				t.Fatalf("get provider = %q, %v; want the not-set error", got, err)
+			}
+		})
+	}
+	t.Run("OCR environment", func(t *testing.T) {
+		t.Setenv("OCR_LLM_URL", "https://llm.example.test")
+		t.Setenv("OCR_LLM_TOKEN", "t")
+		if got, err := configGet(t, writeRawConfigFile(t, `{}`), "provider"); err == nil || !strings.Contains(err.Error(), "not set") {
+			t.Fatalf("get provider = %q, %v; want the not-set error", got, err)
+		}
+		if _, err := configGet(t, filepath.Join(t.TempDir(), "config.json"), "provider"); err == nil || !strings.Contains(err.Error(), "no config file") {
+			t.Fatalf("err = %v", err)
+		}
+	})
 	t.Run("no claude and no file", func(t *testing.T) {
 		t.Setenv("OCR_CLAUDE_CODE_BIN", filepath.Join(t.TempDir(), "missing"))
 		if _, err := configGet(t, filepath.Join(t.TempDir(), "config.json"), "provider"); err == nil || !strings.Contains(err.Error(), "no config file") {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+func TestConfigGetWithoutFileFailsForOtherKeys(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "config.json")
+	for _, key := range []string{"", "model", "providers"} {
+		if got, err := configGet(t, missing, key); err == nil || !strings.Contains(err.Error(), "no config file") {
+			t.Errorf("get %q = %q, %v; want the no-config-file error", key, got, err)
+		}
+	}
 }
 
 func writeRawConfigFile(t *testing.T, body string) string {
