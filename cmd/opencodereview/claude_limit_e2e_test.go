@@ -128,3 +128,119 @@ func testClaudeCodeFailureStopsTheRun(t *testing.T, want string) {
 		}
 	}
 }
+
+func TestScanE2E_ClaudeCodeFatalErrorStopsTheScan(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake claude is a shell script")
+	}
+	t.Setenv("FAKE_CLAUDE_FAILURE", "You've hit your session limit · resets 5pm (Europe/Belgrade)")
+	repoDir := retryTestRepo(t)
+	state := useFakeClaudeScript(t)
+
+	var err error
+	var out string
+	errOut := captureStderr(t, func() {
+		out = captureStdout(t, func() {
+			opts, perr := parseScanFlags([]string{"--repo", repoDir, "--format", "json", "--concurrency", "1", "--no-dedup", "--no-summary"})
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			err = executeScan(opts)
+		})
+	})
+
+	// Scan exits 0 on partial coverage, as it does when single files fail.
+	if err != nil {
+		t.Fatalf("a scan with a scanned file must publish its results: %v\nstderr: %s", err, errOut)
+	}
+	for _, w := range []string{"Run stopped early: claude-code cannot serve further requests", "resets 5pm (Europe/Belgrade)", "ocr scan --resume"} {
+		if !strings.Contains(errOut, w) {
+			t.Errorf("stderr lacks %q:\n%s", w, errOut)
+		}
+	}
+	if failed := fakeClaudeFailedCalls(t, state); failed != 1 {
+		t.Fatalf("the scan must stop after the first account error, got %d failed call(s)", failed)
+	}
+	var got jsonOutput
+	if e := json.Unmarshal([]byte(out), &got); e != nil {
+		t.Fatalf("unmarshal stdout: %v\n%s", e, out)
+	}
+	stopped := false
+	for _, w := range got.Warnings {
+		stopped = stopped || w.Type == "run_stopped"
+	}
+	if !stopped {
+		t.Errorf("warnings lack run_stopped: %+v", got.Warnings)
+	}
+}
+
+func TestScanE2E_ClaudeCodeFatalErrorBeforeAnyFileFailsTheScan(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake claude is a shell script")
+	}
+	t.Setenv("FAKE_CLAUDE_FAILURE", "Not logged in · Please run /login")
+	repoDir := retryTestRepo(t)
+	state := useFakeClaudeScript(t)
+	// No file ever succeeds: "first" names a file that does not exist.
+	if werr := os.WriteFile(filepath.Join(state, "first"), []byte("NONE\n"), 0o600); werr != nil {
+		t.Fatal(werr)
+	}
+
+	var err error
+	errOut := captureStderr(t, func() {
+		captureStdout(t, func() {
+			opts, perr := parseScanFlags([]string{"--repo", repoDir, "--format", "json", "--concurrency", "1", "--no-plan", "--no-dedup", "--no-summary"})
+			if perr != nil {
+				t.Fatal(perr)
+			}
+			err = executeScan(opts)
+		})
+	})
+
+	if err == nil || exitCodeFor(err) != 1 || !strings.Contains(err.Error(), "before any file was scanned") {
+		t.Fatalf("err = %v (exit %d), want a failed scan", err, exitCodeFor(err))
+	}
+	if !strings.Contains(errOut, "Run stopped early: claude-code cannot serve further requests") || !strings.Contains(errOut, "/login") {
+		t.Errorf("stderr lacks the run stop:\n%s", errOut)
+	}
+	if failed := fakeClaudeFailedCalls(t, state); failed != 1 {
+		t.Fatalf("the scan must stop after the first account error, got %d failed call(s)", failed)
+	}
+}
+
+// useFakeClaudeScript installs fakeClaudeLimitScript as the claude CLI with a
+// throwaway HOME and returns the script's state directory.
+func useFakeClaudeScript(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	setTestHome(t, home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	for _, k := range []string{"OCR_LLM_URL", "OCR_LLM_TOKEN", "OCR_LLM_MODEL", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL"} {
+		t.Setenv(k, "")
+	}
+	state := t.TempDir()
+	fake := filepath.Join(state, "claude")
+	if err := os.WriteFile(fake, []byte(fakeClaudeLimitScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OCR_CLAUDE_CODE_BIN", fake)
+	return state
+}
+
+// fakeClaudeFailedCalls counts the calls about a file other than the one the
+// script lets succeed.
+func fakeClaudeFailedCalls(t *testing.T, state string) int {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(state, "calls.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _ := os.ReadFile(filepath.Join(state, "first"))
+	failed := 0
+	for _, c := range strings.Fields(string(data)) {
+		if c != strings.TrimSpace(string(first)) {
+			failed++
+		}
+	}
+	return failed
+}
