@@ -17,6 +17,7 @@ sidebar:
 no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL,
 ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/
 ANTHROPIC_MODEL must be set
+installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work
 ```
 
 OCR прошёл всю цепочку разрешения эндпоинта ([Конфигурация](../configuration/#reuse-existing-environment-variables)),
@@ -28,6 +29,11 @@ OCR прошёл всю цепочку разрешения эндпоинта (
 - Экспортируйте `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`, **или**
 - Экспортируйте `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` /
   `ANTHROPIC_MODEL`, если уже используете Claude Code.
+
+Последняя строка указывает на последний источник цепочки: установите Claude Code и
+войдите (`claude`, затем `/login`) или задайте `OCR_CLAUDE_CODE_BIN`, если он
+установлен вне `PATH`, и OCR переключится на
+[провайдер `claude-code`](../configuration/#claude-code-subscription).
 
 Затем выполните `ocr llm test`, чтобы проверить подключение перед повторным
 запуском ревью.

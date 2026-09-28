@@ -47,6 +47,7 @@ API-ключ. Если `providers.<name>.api_key` не задан, OCR испо�
 
 | Имя | Протокол | Базовый URL | Переменная окружения для API-ключа |
 |---|---|---|---|
+| `claude-code` | claude-code | — (запускает локальный CLI `claude`) | — (вход в Claude Code) |
 | `anthropic` | anthropic | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | `bedrock` | anthropic-bedrock | определяется `aws_region` | — (цепочка учётных данных AWS) |
 | `openai` | openai | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
@@ -138,6 +139,95 @@ Model:  claude-sonnet-5
 описывает один URL и один токен, в нём негде указать регион или профиль, а сами
 эти значения bedrock не использует, поэтому такая комбинация отклоняется, а не
 принимается и молча игнорируется.
+
+### Claude Code (подписка) {#claude-code-subscription}
+
+`claude-code` обрабатывает каждый запрос через Claude Code CLI, установленный на
+машине: OCR запускает собственный, немодифицированный `claude -p` пользователя,
+поэтому ревью оплачивается тем аккаунтом, под которым вошёл `claude`, обычно
+подпиской Claude. URL, API-ключ и запись в конфигурации не нужны, а учётные
+данные Claude OCR никогда не читает.
+
+Этот провайдер также встроен по умолчанию: если ни один другой источник не
+задаёт эндпоинт (см. [Порядок выбора провайдера](#provider-resolution-order)) и
+исполняемый файл `claude` найден, OCR проводит ревью через `claude-code` с
+моделью `opus`.
+
+```bash
+ocr review --from main --to HEAD                    # файл конфигурации не нужен
+ocr review --provider claude-code --model sonnet    # другая модель на один запуск
+ocr config set provider claude-code                 # закрепить в файле конфигурации
+```
+
+Модель задаётся псевдонимом (`opus`, `sonnet`, `haiku`, `fable`) или полным
+идентификатором. Этот провайдер принимает любое значение `--model`; что именно
+доступно, решает вход в `claude`.
+
+| Переменная | Назначение |
+|---|---|
+| `OCR_CLAUDE_CODE_BIN` | Путь к исполняемому файлу `claude`. По умолчанию — `claude` из `PATH`. |
+| `OCR_CLAUDE_CODE_EFFORT` | Уровень рассуждений, передаваемый Claude Code: `low` (по умолчанию), `medium`, `high`, `xhigh`, `max` или `auto`, чтобы выбор сделал сам Claude Code. |
+
+Процесс `claude` запускается без `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`, без переключателей
+`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
+`CLAUDE_CODE_USE_FOUNDRY` и без переопределений `ANTHROPIC_*MODEL`, поэтому
+ключ или шлюз, экспортированные в оболочке, не могут незаметно перевести оплату
+ревью с подписки на API. Условия Anthropic разрешают использовать подписку только
+через немодифицированный исполняемый файл Claude Code; см.
+[Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance).
+
+`ocr llm test` вместо URL показывает исполняемый файл:
+
+```
+Source: claude CLI on PATH
+CLI:    /usr/local/bin/claude
+Model:  opus
+✓ Connection test successful
+```
+
+`Source:` показывает `OCR_CLAUDE_CODE_BIN`, если исполняемый файл выбран этой
+переменной, и `provider:claude-code`, если провайдер выбран через `--provider`
+или файл конфигурации.
+
+Когда Claude Code сообщает о лимите использования подписки, `ocr review`
+прекращает отправку оставшихся групп, сохраняет уже полученные результаты,
+выводит `[ocr] Run stopped early: ...` и завершается с кодом `3` и подсказкой
+`ocr review --resume <id>` (с кодом `1`, если ничего ещё не проверено).
+Продолжите после сброса окна лимита или уменьшите `--concurrency`. `ocr scan`
+пока не выводит это сообщение.
+
+### Порядок выбора провайдера {#provider-resolution-order}
+
+Без `--provider` OCR берёт первый источник, который даёт полный эндпоинт:
+
+1. Файл конфигурации `~/.opencodereview/config.json` (`provider` или устаревший блок `llm`).
+2. `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`.
+3. `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`.
+4. Те же экспорты в rc-файлах оболочки.
+5. Claude Code CLI из `PATH` (или `OCR_CLAUDE_CODE_BIN`): провайдер `claude-code`, модель `opus`.
+
+Файл конфигурации всегда имеет приоритет. Если в нём указан провайдер, его
+ошибки сохраняются даже при неверной настройке, а наполовину заполненный блок
+`llm` тоже выдаёт ошибку; ни то ни другое не переключается на Claude Code. Когда
+провайдер не задан, `ocr config get provider` выводит `claude-code` и поясняет
+источник в stderr.
+
+`--provider <preset>` в `ocr review`, `ocr scan` и `ocr llm test` выбирает
+провайдера на один запуск, не меняя конфигурацию. Встроенный пресет работает без
+записи `providers.<name>` и без файла конфигурации, если ему не нужен API-ключ
+(`claude-code`, `bedrock`) или если задана его переменная с API-ключом. Модель
+берётся из `--model`, затем из `model` записи, затем из верхнеуровневого `model`
+(он сохраняется, только если `--provider` называет настроенного провайдера),
+затем из значения пресета по умолчанию; оно есть только у `claude-code`, поэтому
+`bedrock` по-прежнему требует `--model`. `--model` принимает список моделей
+пресета, `models` записи и любую модель, указанную в `model` записи или на
+верхнем уровне, даже если списку пресета она ещё не известна.
+
+```bash
+ocr review --provider z-ai-coding --model <id>    # другой провайдер на один запуск
+ocr config set provider z-ai-coding               # сделать провайдером по умолчанию
+```
 
 ### Пользовательские провайдеры
 
@@ -352,7 +442,8 @@ ocr llm test
 
 Если у вас уже настроены переменные Claude Code `ANTHROPIC_*` или собственные
 переменные OCR `OCR_LLM_*`, OCR обнаружит их автоматически — файл конфигурации
-не нужен.
+не нужен. Их приоритет относительно файла конфигурации и Claude Code по
+умолчанию описан в разделе [Порядок выбора провайдера](#provider-resolution-order).
 
 ### Использование CC-Switch
 

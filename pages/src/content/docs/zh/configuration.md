@@ -41,6 +41,7 @@ ocr config set providers.anthropic.api_key sk-ant-xxxxxxxxxx
 
 | 名称 | 协议 | Base URL | API key 环境变量 |
 |---|---|---|---|
+| `claude-code` | claude-code | —（运行本机的 `claude` CLI） | —（Claude Code 的登录） |
 | `anthropic` | anthropic | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | `bedrock` | anthropic-bedrock | 由 `aws_region` 决定 | —（AWS 凭证链） |
 | `openai` | openai | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
@@ -123,6 +124,83 @@ Model:  claude-sonnet-5
 `llm.protocol` 和 `OCR_LLM_PROTOCOL` **不支持** bedrock。该配置块描述的是一个
 URL 加一个 token，没有地方放区域或 profile，而 bedrock 这两个值都不使用，因此
 会被明确拒绝，而不是接受后悄悄忽略。
+
+### Claude Code（订阅） {#claude-code-subscription}
+
+`claude-code` 通过本机安装的 Claude Code CLI 处理每一次请求：OCR 运行用户自己
+安装的、未经修改的 `claude -p`，因此评审的费用计入 `claude` 当前登录的账户，
+通常是 Claude 订阅。无需设置 URL、API key 或配置条目，OCR 也从不读取 Claude 的
+凭据。
+
+它同时是内置默认值：当其他来源都没有配置端点（见
+[provider 解析顺序](#provider-resolution-order)）且能找到 `claude` 可执行文件时，
+OCR 使用 `claude-code` 和 `opus` 模型进行评审。
+
+```bash
+ocr review --from main --to HEAD                    # 无需配置文件
+ocr review --provider claude-code --model sonnet    # 本次运行换一个模型
+ocr config set provider claude-code                 # 在配置文件中固定下来
+```
+
+模型可以是别名（`opus`、`sonnet`、`haiku`、`fable`），也可以是完整的模型 ID。
+该 provider 接受任意 `--model` 值，能否使用由 `claude` 的登录决定。
+
+| 变量 | 含义 |
+|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `claude` 可执行文件的路径。默认使用 `PATH` 上的 `claude`。 |
+| `OCR_CLAUDE_CODE_EFFORT` | 传给 Claude Code 的推理强度：`low`（默认）、`medium`、`high`、`xhigh`、`max`，或 `auto`（交由 Claude Code 决定）。 |
+
+`claude` 进程启动时不带 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
+`ANTHROPIC_BASE_URL`、`ANTHROPIC_CUSTOM_HEADERS`，不带
+`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
+`CLAUDE_CODE_USE_FOUNDRY` 开关，也不带 `ANTHROPIC_*MODEL` 覆盖，因此 shell 中导出的
+key 或网关无法悄悄把评审从订阅计费切换到 API 计费。Anthropic 的条款只允许通过
+未经修改的 Claude Code 程序使用订阅，详见
+[Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)。
+
+`ocr llm test` 用可执行文件代替 URL 显示：
+
+```
+Source: claude CLI on PATH
+CLI:    /usr/local/bin/claude
+Model:  opus
+✓ Connection test successful
+```
+
+当由 `OCR_CLAUDE_CODE_BIN` 选定可执行文件时，`Source:` 显示 `OCR_CLAUDE_CODE_BIN`；
+当 provider 由 `--provider` 或配置文件选定时，显示 `provider:claude-code`。
+
+当 Claude Code 报告订阅用量上限时，`ocr review` 停止分发剩余的分组，保留已经得到的
+结果，打印 `[ocr] Run stopped early: ...`，并以 `3` 退出，附带
+`ocr review --resume <id>` 提示（尚未评审任何文件时以 `1` 退出）。请在额度窗口重置后
+续跑，或降低 `--concurrency`。`ocr scan` 目前还不会打印这条消息。
+
+### provider 解析顺序 {#provider-resolution-order}
+
+不传 `--provider` 时，OCR 使用第一个能给出完整端点的来源：
+
+1. 配置文件 `~/.opencodereview/config.json`（`provider`，或旧版 `llm` 配置块）。
+2. `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`。
+3. `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`。
+4. shell rc 文件中的同名导出。
+5. `PATH` 上的 Claude Code CLI（或 `OCR_CLAUDE_CODE_BIN`）：provider `claude-code`，模型 `opus`。
+
+配置文件始终优先。配置文件中指定的 provider 即使配置有误也会保留其错误，填了一半的
+`llm` 配置块同样会报错；两者都不会回退到 Claude Code。未设置 provider 时，
+`ocr config get provider` 打印 `claude-code`，并在 stderr 上说明来源。
+
+`ocr review`、`ocr scan` 和 `ocr llm test` 上的 `--provider <preset>` 为单次运行选择
+provider，不修改配置。内置预设在不需要 API key（`claude-code`、`bedrock`）或其 API key
+环境变量已设置时，无需 `providers.<name>` 条目，也无需配置文件。模型依次取自
+`--model`、条目的 `model`、顶层 `model`（仅当 `--provider` 指向已配置的 provider 时保留）、
+预设默认值；只有 `claude-code` 有默认值，因此 `bedrock` 仍然需要 `--model`。
+`--model` 接受预设的模型列表、条目的 `models`，以及条目或顶层 `model` 中设置的任何模型，
+即使预设列表尚未收录它。
+
+```bash
+ocr review --provider z-ai-coding --model <id>    # 本次运行换一个 provider
+ocr config set provider z-ai-coding               # 设为默认
+```
 
 ### 自定义 provider
 
@@ -305,7 +383,7 @@ ocr llm test
 
 ### 复用已有的环境变量
 
-如果你已经配好了 Claude Code 的 `ANTHROPIC_*`，或 OCR 自己的 `OCR_LLM_*`环境变量，OCR 会自动识别，无需再写配置文件。
+如果你已经配好了 Claude Code 的 `ANTHROPIC_*`，或 OCR 自己的 `OCR_LLM_*`环境变量，OCR 会自动识别，无需再写配置文件。它们与配置文件及 Claude Code 默认值的先后关系见 [provider 解析顺序](#provider-resolution-order)。
 
 ### 使用 CC-Switch
 
