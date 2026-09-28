@@ -383,10 +383,11 @@ envelope instead so callers can distinguish "no changes" from "no findings":
 | `3` | Partial review — results (findings, `session_id`, coverage) were published, but some selected files failed, e.g. on provider rate limits or timeouts. stderr names the session; review the failed files with `ocr review --resume <session-id>` and the same `--from`/`--to`/`--commit`. Files skipped only by `--max-tokens-budget` do not count, and `--allow-partial` turns this into `0`. |
 
 When the provider stops serving requests for the whole run, such as a
-`claude-code` subscription usage limit, OCR dispatches no further groups, keeps
-the results already produced and prints `[ocr] Run stopped early: <reason>`
-before the resume hint. The run then exits `3`, or `1` when no file was
-reviewed.
+`claude-code` subscription usage or session limit, OCR dispatches no further
+files, keeps the results already produced and prints `[ocr] Run stopped early:
+<reason>` before the resume hint. `ocr review` then exits `3`, or `1` when no
+file was reviewed; `ocr scan` exits `0` with a `run_stopped` warning when it
+scanned at least one file, and `1` otherwise.
 
 Non-fatal warnings (a single sub-agent failed, a file exceeded the token
 threshold, etc.) are printed inline; in JSON mode they're added to the
