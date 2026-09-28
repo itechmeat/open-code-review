@@ -44,6 +44,7 @@ environment variable.
 
 | Name | Protocol | Base URL | API key env var |
 |---|---|---|---|
+| `claude-code` | claude-code | — (runs the local `claude` CLI) | — (the Claude Code login) |
 | `anthropic` | anthropic | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | `bedrock` | anthropic-bedrock | derived from `aws_region` | — (AWS credential chain) |
 | `openai` | openai | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
@@ -139,6 +140,94 @@ Bedrock is **not** available through `llm.protocol` or `OCR_LLM_PROTOCOL`. That
 block describes one URL and one token, has nowhere to put a region or a profile,
 and bedrock uses neither value it does carry, so the combination is rejected
 rather than accepted and ignored.
+
+### Claude Code (subscription)
+
+`claude-code` serves every request through the Claude Code CLI installed on
+the machine: OCR runs the user's own, unmodified `claude -p`, so the review is
+billed to whatever `claude` is logged in with, typically a Claude
+subscription. There is no URL, API key or config entry to set, and OCR never
+reads the Claude credentials.
+
+It is also the built-in default: when no other source configures an endpoint
+(see [Provider resolution order](#provider-resolution-order)) and a `claude`
+binary is found, OCR reviews with `claude-code` and the `opus` model.
+
+```bash
+ocr review --from main --to HEAD                    # no config file needed
+ocr review --provider claude-code --model sonnet    # another model for one run
+ocr config set provider claude-code                 # pin it in the config file
+```
+
+The model is an alias (`opus`, `sonnet`, `haiku`, `fable`) or a full model ID.
+Any `--model` value is accepted for this provider; the `claude` login decides
+what it may use.
+
+| Variable | Meaning |
+|---|---|
+| `OCR_CLAUDE_CODE_BIN` | Path of the `claude` executable. Defaults to `claude` on `PATH`. |
+| `OCR_CLAUDE_CODE_EFFORT` | Reasoning effort passed to Claude Code: `low` (default), `medium`, `high`, `xhigh`, `max`, or `auto` to leave the choice to Claude Code. |
+
+The `claude` process starts without `ANTHROPIC_API_KEY`,
+`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`, the
+`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
+`CLAUDE_CODE_USE_FOUNDRY` switches and the `ANTHROPIC_*MODEL` overrides, so a
+key or gateway exported in the shell cannot silently move the review from the
+subscription to API billing. Anthropic's terms allow subscription use only
+through the unmodified Claude Code binary; see
+[Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance).
+
+`ocr llm test` names the executable in place of a URL:
+
+```
+Source: claude CLI on PATH
+CLI:    /usr/local/bin/claude
+Model:  opus
+✓ Connection test successful
+```
+
+`Source:` reads `OCR_CLAUDE_CODE_BIN` when that variable chose the binary and
+`provider:claude-code` when the provider was selected by `--provider` or the
+config file.
+
+When Claude Code reports a subscription usage limit, `ocr review` stops
+dispatching the remaining groups, keeps the results already produced, prints
+`[ocr] Run stopped early: ...` and exits `3` with an `ocr review --resume <id>`
+hint (exit `1` when nothing was reviewed yet). Resume after the limit window
+resets, or lower `--concurrency`. `ocr scan` does not print this message yet.
+
+### Provider resolution order
+
+Without `--provider`, OCR uses the first source that yields a complete
+endpoint:
+
+1. The config file `~/.opencodereview/config.json` (`provider`, or the legacy `llm` block).
+2. `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`.
+3. `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`.
+4. The same exports found in shell rc files.
+5. The Claude Code CLI on `PATH` (or `OCR_CLAUDE_CODE_BIN`): provider `claude-code`, model `opus`.
+
+The config file always wins. A config file that names a provider keeps that
+provider's errors, even when it is misconfigured, and a half-filled `llm` block
+is reported as an error; neither falls back to Claude Code.
+`ocr config get provider` prints `claude-code` when no provider is set and
+explains the source on stderr.
+
+`--provider <preset>` on `ocr review`, `ocr scan` and `ocr llm test` selects a
+provider for one run without changing the config. A built-in preset works
+without a `providers.<name>` entry, and without a config file, when it needs no
+API key (`claude-code`, `bedrock`) or when its API key variable is set. The
+model comes from `--model`, else the entry's `model`, else the top-level
+`model` (kept only when `--provider` names the configured provider), else the
+preset default; only `claude-code` has one, so `bedrock` still needs `--model`.
+`--model` accepts the preset's model list, the entry's `models`, and any model
+set in the entry's or the top-level `model`, even one the preset list does not
+know yet.
+
+```bash
+ocr review --provider z-ai-coding --model <id>    # another provider for one run
+ocr config set provider z-ai-coding               # make it the default
+```
 
 ### Custom providers
 
@@ -366,7 +455,8 @@ ocr llm test
 
 If you already have Claude Code's `ANTHROPIC_*` or OCR's own `OCR_LLM_*`
 environment variables configured, OCR picks them up automatically — no
-config file needed.
+config file needed. See [Provider resolution order](#provider-resolution-order)
+for how they rank against the config file and the Claude Code default.
 
 ### Using CC-Switch
 

@@ -133,7 +133,7 @@ staged + unstaged + untracked changes in the current directory's repo.
 | `--max-tools <n>` | — | template default | Max tool-call rounds per subtask. `0` uses the template default (`100`); values 1–49 are clamped up to `50`. The flag only ever *raises* the cap — a value below the template default is ignored. |
 | `--max-tokens <n>` | — | config or template default | Prompt (input) token ceiling per subtask; the template default is `200000`. Overrides the saved `max_tokens` setting for this run. Does not change the output cap — see `MAX_COMPLETION_TOKENS`. |
 | `--max-tokens-budget <n>` | — | `0` (unlimited) | Cap total input + output token usage for the review. Checked before every LLM round: a subtask already over budget gets one final round to submit findings and is reported as `failed(budget)`, no further subtasks are dispatched, and partial results are still published. |
-| `--provider <name>` | — | — | Select a configured provider for this run. Names under both `providers` and `custom_providers` are accepted. |
+| `--provider <name>` | — | — | Select a provider for this run. Names under both `providers` and `custom_providers` are accepted, and so is a built-in preset that needs no entry (see [Per-run LLM selection](#per-run-llm-selection)). |
 | `--model <name>` | — | — | Override the resolved LLM model for this run (e.g., `claude-opus-4-6`). |
 | `--max-git-procs <n>` | — | `16` | Maximum number of concurrent git subprocesses. |
 | `--tools <path>` | — | embedded | Path to a custom JSON tool-config file. Overrides the embedded tool definitions. |
@@ -154,10 +154,14 @@ ocr scan --provider openai --model gpt-5.4 --format json
 ```
 
 An explicit `--provider` selects a saved entry from `providers` or
-`custom_providers` before normal source resolution. Without `--provider`, OCR
+`custom_providers` before normal source resolution. A built-in preset needs no
+entry, and no config file, when it needs no API key (`claude-code`, `bedrock`)
+or when its API key variable is set. Without `--provider`, OCR
 preserves the legacy source order: saved configuration, complete `OCR_LLM_*`
-environment configuration, complete Claude Code environment configuration, then
-shell rc files. `--model` overrides the model within whichever source wins; it
+environment configuration, complete Claude Code environment configuration,
+shell rc files, and last the Claude Code CLI on `PATH` (or
+`OCR_CLAUDE_CODE_BIN`) as provider `claude-code` with model `opus`. `--model`
+overrides the model within whichever source wins; it
 does not change that source order. Incomplete strategies fall through without
 being mixed. A selected built-in provider's credentials may still come from its
 supported environment variable.
@@ -166,6 +170,24 @@ For built-in providers, `--model` accepts IDs outside the suggested models in
 `ocr config model`. If the ID is absent from both the built-in list and
 `providers.<name>.models`, OCR warns on stderr and leaves validation to the
 provider. Custom providers retain their existing `--model` validation rules.
+
+```bash
+ocr review --from main --to HEAD                   # built-in default: claude-code, opus
+ocr review --provider claude-code --model sonnet   # no providers.claude-code entry needed
+ocr review --provider z-ai-coding --model <id>     # another provider for this run only
+ocr config set provider z-ai-coding                # persistent default
+```
+
+The `claude-code` provider reads two environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `claude` on `PATH` | Path of the Claude Code executable. |
+| `OCR_CLAUDE_CODE_EFFORT` | `low` | Reasoning effort passed to `claude`: `low`, `medium`, `high`, `xhigh`, `max`, or `auto`. |
+
+See [Configuration](../configuration/#claude-code-subscription) for the
+provider, its models and how it keeps API credentials out of the `claude`
+process.
 
 ### Modes
 
@@ -359,6 +381,12 @@ envelope instead so callers can distinguish "no changes" from "no findings":
 | `0` | Review completed (possibly with zero comments, possibly with non-fatal warnings). |
 | `1` | Fatal error — bad flags, can't resolve LLM endpoint, all per-group sub-agents failed, etc. The error text is printed to stderr. |
 | `3` | Partial review — results (findings, `session_id`, coverage) were published, but some selected files failed, e.g. on provider rate limits or timeouts. stderr names the session; review the failed files with `ocr review --resume <session-id>` and the same `--from`/`--to`/`--commit`. Files skipped only by `--max-tokens-budget` do not count, and `--allow-partial` turns this into `0`. |
+
+When the provider stops serving requests for the whole run, such as a
+`claude-code` subscription usage limit, OCR dispatches no further groups, keeps
+the results already produced and prints `[ocr] Run stopped early: <reason>`
+before the resume hint. The run then exits `3`, or `1` when no file was
+reviewed.
 
 Non-fatal warnings (a single sub-agent failed, a file exceeded the token
 threshold, etc.) are printed inline; in JSON mode they're added to the
@@ -589,7 +617,7 @@ ocr config model                           Interactive model selection
 - **`set`** — write a single config value non-interactively. `effort`
   accepts `low` / `medium` / `high` and sets the default review effort for
   every run; `--effort` overrides it per invocation.
-- **`get`** — print a saved value by the same dotted key `set` takes (`provider`, `providers.<name>.model`, `llm.url`, …). Strings print as plain text, objects as JSON; `model` reports the active provider's model, and with no key the whole file is printed. API keys, tokens and token-like headers or env values are always masked. A key that is not set exits `1`.
+- **`get`** — print a saved value by the same dotted key `set` takes (`provider`, `providers.<name>.model`, `llm.url`, …). Strings print as plain text, objects as JSON; `model` reports the active provider's model, and with no key the whole file is printed. API keys, tokens and token-like headers or env values are always masked. A key that is not set exits `1`, except `provider`: with no provider saved and a `claude` binary reachable it prints `claude-code` and explains the source on stderr.
 - **`unset`** — clear a saved key. `provider`, `max_tokens`, `effort`,
   `custom_providers.<name>`, and `mcp_servers.<name>` are supported.
   Clearing `effort` restores the default `medium` preset. If a deleted
@@ -620,8 +648,13 @@ Sub-commands:
 ### `ocr llm test`
 
 ```text
-ocr llm test
+ocr llm test [--provider <name>] [--model <name>]
 ```
+
+| Flag | Description |
+|---|---|
+| `--provider <name>` | Test this provider instead of the default. A built-in preset that needs no entry (see [Per-run LLM selection](#per-run-llm-selection)) works without one. |
+| `--model <name>` | Override the model for this test. |
 
 Resolves the LLM endpoint exactly the way `ocr review` does, sends a single
 canned chat request from
@@ -635,6 +668,11 @@ Model:  <effective model>
 <the model's reply>
 ✓ Connection test successful
 ```
+
+For `claude-code` the `URL:` line is replaced by `CLI:` with the resolved
+`claude` executable, and `Source:` reads `claude CLI on PATH` when the provider
+came from the built-in default. For `bedrock` it is replaced by `Region:` and
+`Profile:`.
 
 A non-zero exit means either the endpoint isn't fully configured or the
 request failed (network / auth / model error). The error message tells you
