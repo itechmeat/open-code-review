@@ -141,6 +141,46 @@ func TestListProviders_ReturnsSortedProviders(t *testing.T) {
 	}
 }
 
+func TestLookupProvider_ClaudeCodeDetails(t *testing.T) {
+	p, ok := LookupProvider("claude-code")
+	if !ok {
+		t.Fatal("claude-code not found")
+	}
+	if p.DisplayName != "Claude Code CLI (Claude subscription)" {
+		t.Errorf("DisplayName = %q", p.DisplayName)
+	}
+	if p.Protocol != ProtocolClaudeCode {
+		t.Errorf("Protocol = %q, want %q", p.Protocol, ProtocolClaudeCode)
+	}
+	// The CLI authenticates with its own login: no endpoint, no key.
+	if p.BaseURL != "" || p.EnvVar != "" || p.AuthHeader != "" {
+		t.Errorf("BaseURL = %q, EnvVar = %q, AuthHeader = %q, want all empty", p.BaseURL, p.EnvVar, p.AuthHeader)
+	}
+	if !p.AmbientAuth {
+		t.Error("AmbientAuth = false, want true")
+	}
+	if p.DefaultModel != "opus" {
+		t.Errorf("DefaultModel = %q, want %q", p.DefaultModel, "opus")
+	}
+	expectedModels := []string{
+		"sonnet",
+		"opus",
+		"haiku",
+		"fable",
+		"claude-sonnet-5",
+		"claude-opus-5-5",
+		"claude-haiku-4-5",
+	}
+	if len(p.Models) != len(expectedModels) {
+		t.Fatalf("Models = %q, want %q", p.Models, expectedModels)
+	}
+	for i, model := range expectedModels {
+		if p.Models[i] != model {
+			t.Errorf("Models[%d] = %q, want %q", i, p.Models[i], model)
+		}
+	}
+}
+
 func TestLookupProvider_AnthropicDetails(t *testing.T) {
 	p, ok := LookupProvider("anthropic")
 	if !ok {
