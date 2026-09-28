@@ -135,15 +135,29 @@ func TestClaudeCodeBinaryExported(t *testing.T) {
 	}
 }
 
-func TestClaudeCodeFallbackReport(t *testing.T) {
+func TestClaudeCodeDefault(t *testing.T) {
 	clearAllEnv(t)
-	if _, ok := ClaudeCodeFallback(); ok {
-		t.Fatal("fallback reported without a reachable claude CLI")
+	if _, ok := ClaudeCodeDefault(missingConfigPath(t)); ok {
+		t.Fatal("default reported without a reachable claude CLI")
 	}
 	fakeClaudeBin(t)
-	ep, ok := ClaudeCodeFallback()
+	ep, ok := ClaudeCodeDefault(missingConfigPath(t))
 	if !ok || ep.Provider != "claude-code" || ep.Model != "opus" || ep.Source != envClaudeCodeBin {
-		t.Fatalf("ClaudeCodeFallback() = %+v, %v", ep, ok)
+		t.Fatalf("ClaudeCodeDefault() = %+v, %v", ep, ok)
+	}
+	marker := filepath.Join(t.TempDir(), "ran")
+	cmdCfg := writeRawConfig(t, `{"llm":{"url":"https://llm.example.test","model":"m","auth_token_cmd":"touch `+filepath.ToSlash(marker)+`"}}`)
+	if _, ok := ClaudeCodeDefault(cmdCfg); ok {
+		t.Error("a started llm block is not the fallback")
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("answering must not run auth_token_cmd")
+	}
+	t.Setenv("OCR_LLM_URL", "https://llm.example.test")
+	t.Setenv("OCR_LLM_TOKEN", "t")
+	t.Setenv("OCR_LLM_MODEL", "m")
+	if _, ok := ClaudeCodeDefault(missingConfigPath(t)); ok {
+		t.Error("a complete OCR environment wins over the fallback")
 	}
 }
 
