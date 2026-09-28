@@ -219,6 +219,7 @@ func executeScan(opts scanOptions) (retErr error) {
 		MaxConcurrency:        opts.concurrency,
 		ConcurrentTaskTimeout: opts.concurrentTaskTimeout,
 		Model:                 rt.Model,
+		Provider:              rt.Provider,
 		EndpointSource:        rt.Source,
 		Background:            opts.background,
 		GitRunner:             cc.GitRunner,
@@ -251,13 +252,24 @@ func executeScan(opts scanOptions) (retErr error) {
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
+		printRunStop(ag)
 		if id := ag.SessionID(); id != "" {
 			fmt.Fprintf(os.Stderr, "[ocr] Session: %s (retry with: --resume %s)\n", id, id)
 		}
 		return fmt.Errorf("scan failed: %w", err)
 	}
 
-	return emitRunResult(ctx, ag, comments, startTime, opts.outputFormat, opts.audience, q, llmIdentity, out, nil)
+	emitErr := emitRunResult(ctx, ag, comments, startTime, opts.outputFormat, opts.audience, q, llmIdentity, out, nil)
+	// A stopped scan still exits 0 when it scanned something, like a scan that
+	// lost single files: its findings are valid, and the run_stopped warning
+	// plus this hint tell the caller to resume for the rest.
+	if ag.StoppedBy() != nil {
+		printRunStop(ag)
+		if id := ag.SessionID(); id != "" {
+			fmt.Fprintf(os.Stderr, "[ocr] Session: %s (scan the remaining files with: ocr scan --resume %s, plus the same --path)\n", id, id)
+		}
+	}
+	return emitErr
 }
 
 func loadScanResumeState(repoDir string, opts scanOptions, scanPaths []string) (*session.ResumeState, error) {
