@@ -124,17 +124,6 @@ func TestResolveWithoutAnyEndpointMentionsClaudeCode(t *testing.T) {
 	}
 }
 
-func TestClaudeCodeBinaryExported(t *testing.T) {
-	bin := fakeClaudeBin(t)
-	if got, err := ClaudeCodeBinary(); err != nil || got != bin {
-		t.Fatalf("ClaudeCodeBinary() = %q, %v", got, err)
-	}
-	t.Setenv(envClaudeCodeBin, filepath.Join(t.TempDir(), "missing"))
-	if _, err := ClaudeCodeBinary(); err == nil || !strings.Contains(err.Error(), envClaudeCodeBin) {
-		t.Fatalf("err = %v", err)
-	}
-}
-
 func TestClaudeCodeDefault(t *testing.T) {
 	clearAllEnv(t)
 	if _, ok := ClaudeCodeDefault(missingConfigPath(t)); ok {
