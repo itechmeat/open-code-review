@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -20,23 +21,23 @@ import (
 // on PATH.
 const envClaudeCodeBin = "OCR_CLAUDE_CODE_BIN"
 
-// claudeCodeScrubbedEnv lists variables that would make Claude Code bill an
-// API account, route to another gateway or remap the requested model instead
-// of using its own login, plus the parent Claude Code session's identity so
-// each run is an independent session even when OCR is launched from one.
+// Variables that would make Claude Code bill an API account, route to another
+// gateway or backend, or remap the requested model instead of using its own
+// login are dropped by prefix, so variables added by newer CLI releases are
+// covered too. Names compare case-insensitively because Windows environment
+// names are.
+var claudeCodeScrubbedEnvPrefixes = []string{"ANTHROPIC_", "CLAUDE_CODE_USE_", "CLAUDE_CODE_API_"}
+
+// claudeCodeKeptEnv survives the prefix rules: ANTHROPIC_LOG only sets the log
+// level and cannot change the account, endpoint or model.
+var claudeCodeKeptEnv = []string{"ANTHROPIC_LOG"}
+
+// claudeCodeScrubbedEnv lists single variables outside those prefixes: a host
+// that manages the provider for the CLI, and the parent Claude Code session's
+// identity, so each run is an independent session even when OCR is launched
+// from one.
 var claudeCodeScrubbedEnv = []string{
-	"ANTHROPIC_API_KEY",
-	"ANTHROPIC_AUTH_TOKEN",
-	"ANTHROPIC_BASE_URL",
-	"ANTHROPIC_CUSTOM_HEADERS",
-	"CLAUDE_CODE_USE_BEDROCK",
-	"CLAUDE_CODE_USE_VERTEX",
-	"CLAUDE_CODE_USE_FOUNDRY",
-	"ANTHROPIC_MODEL",
-	"ANTHROPIC_DEFAULT_SONNET_MODEL",
-	"ANTHROPIC_DEFAULT_OPUS_MODEL",
-	"ANTHROPIC_DEFAULT_HAIKU_MODEL",
-	"ANTHROPIC_SMALL_FAST_MODEL",
+	"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
 	"CLAUDECODE",
 	"CLAUDE_CODE_SESSION_ID",
 	"CLAUDE_CODE_CHILD_SESSION",
@@ -230,16 +231,24 @@ func claudeCodeEnv(environ []string) []string {
 	out := make([]string, 0, len(environ))
 	for _, kv := range environ {
 		key, _, _ := strings.Cut(kv, "=")
-		scrub := false
-		for _, s := range claudeCodeScrubbedEnv {
-			if key == s {
-				scrub = true
-				break
-			}
-		}
-		if !scrub {
+		if !claudeCodeEnvScrubbed(strings.ToUpper(key)) {
 			out = append(out, kv)
 		}
 	}
 	return out
+}
+
+func claudeCodeEnvScrubbed(key string) bool {
+	if slices.Contains(claudeCodeKeptEnv, key) {
+		return false
+	}
+	if slices.Contains(claudeCodeScrubbedEnv, key) {
+		return true
+	}
+	for _, prefix := range claudeCodeScrubbedEnvPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
