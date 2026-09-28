@@ -170,8 +170,10 @@ ocr review --provider claude-code --model sonnet --audience agent
 ocr config set provider claude-code      # make it the default
 ```
 
-Recommended `--concurrency 4` to stay within subscription rate limits; the
-default stays upstream's.
+Recommended `--concurrency 4` to stay within subscription rate limits. Which
+provider is the default is settled in
+`2026-09-28-claude-code-default-design.md`: `claude-code` is the fallback when
+nothing else is configured.
 
 ## Claude Code integration
 
