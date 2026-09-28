@@ -133,6 +133,14 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 		{"OCR environment", func() (ResolvedEndpoint, bool, error) { return tryOCREnv(opts.Model) }},
 		{"Claude Code environment", func() (ResolvedEndpoint, bool, error) { return tryCCEnv(opts.Model) }},
 		{"Shell rc file", func() (ResolvedEndpoint, bool, error) { return tryShellRC(opts.Model) }},
+		{"Claude Code CLI", func() (ResolvedEndpoint, bool, error) {
+			// A half-filled llm block is a config mistake to report, not a
+			// reason to review on another account.
+			if legacyLlmBlockStarted(configPath) {
+				return ResolvedEndpoint{}, false, nil
+			}
+			return tryClaudeCodeFallback(opts.Model)
+		}},
 	}
 
 	for _, strategy := range strategies {
@@ -148,7 +156,8 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 		}
 	}
 
-	return ResolvedEndpoint{}, fmt.Errorf("no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL, ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL must be set")
+	return ResolvedEndpoint{}, fmt.Errorf("no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL, ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL must be set\n" +
+		"installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work")
 }
 
 // presetUsableWithoutEntry reports whether a preset can resolve without a
@@ -156,6 +165,57 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 // API key variable is set.
 func presetUsableWithoutEntry(p Provider) bool {
 	return p.AmbientAuth || (p.EnvVar != "" && strings.TrimSpace(os.Getenv(p.EnvVar)) != "")
+}
+
+// legacyLlmBlockStarted reports whether the config file sets any endpoint
+// field of the legacy llm block. Read and parse errors were already reported
+// by the config strategy, so they count as "not started" here.
+func legacyLlmBlockStarted(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var cfg configFile
+	if json.Unmarshal(data, &cfg) != nil {
+		return false
+	}
+	for _, v := range []string{cfg.Llm.URL, cfg.Llm.AuthToken, cfg.Llm.AuthTokenCmd, cfg.Llm.Model} {
+		if strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// ClaudeCodeFallback reports the endpoint the last resolution strategy would
+// pick, without consulting any other source.
+func ClaudeCodeFallback() (ResolvedEndpoint, bool) {
+	ep, ok, _ := tryClaudeCodeFallback("")
+	return ep, ok
+}
+
+// tryClaudeCodeFallback is the last strategy: with nothing else configured, a
+// reachable claude CLI reviews on the user's own Claude login.
+func tryClaudeCodeFallback(modelOverride string) (ResolvedEndpoint, bool, error) {
+	if _, err := claudeCodeBinary(); err != nil {
+		return ResolvedEndpoint{}, false, nil
+	}
+	preset, _ := LookupProvider("claude-code")
+	model := preset.DefaultModel
+	if modelOverride != "" {
+		model = modelOverride
+	}
+	source := "claude CLI on PATH"
+	if strings.TrimSpace(os.Getenv(envClaudeCodeBin)) != "" {
+		source = envClaudeCodeBin
+	}
+	return ResolvedEndpoint{
+		Model:       model,
+		Provider:    preset.Name,
+		Protocol:    ProtocolClaudeCode,
+		Source:      source,
+		AmbientAuth: true,
+	}, true, nil
 }
 
 // envOverrides holds the global OCR_LLM_* overrides that apply to whichever
