@@ -73,6 +73,19 @@ func runFakeClaude(mode string) int {
 		}
 		mode = "tools"
 	}
+	if mode == "rate-limited-once" || mode == "resume-rate-limited" {
+		resuming := false
+		for _, a := range os.Args {
+			resuming = resuming || a == "--resume"
+		}
+		marker := os.Getenv("OCR_FAKE_CLAUDE_DUMP") + ".limited-once"
+		if _, err := os.Stat(marker); err != nil && (mode == "rate-limited-once" || resuming) {
+			_ = os.WriteFile(marker, nil, 0o600)
+			fmt.Print(`{"type":"result","is_error":true,"result":"API Error: 429 rate limit exceeded"}`)
+			return 1
+		}
+		mode = "tools"
+	}
 	if mode == "resume-fails" || mode == "resume-login" {
 		for _, a := range os.Args {
 			if a == "--resume" && mode == "resume-login" {
@@ -104,6 +117,9 @@ func runFakeClaude(mode string) int {
 		return 1
 	case "error-limit":
 		fmt.Print(`{"type":"result","is_error":true,"result":"Claude AI usage limit reached|1760000000"}`)
+		return 1
+	case "error-rate-limit":
+		fmt.Print(`{"type":"result","is_error":true,"result":"API Error: Repeated 529 Overloaded errors"}`)
 		return 1
 	case "old-cli":
 		fmt.Fprint(os.Stderr, "error: unknown option '--effort'")
