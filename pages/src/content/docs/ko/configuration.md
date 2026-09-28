@@ -130,7 +130,7 @@ ocr config set provider claude-code                 # 설정 파일에 고정
 | `OCR_CLAUDE_CODE_BIN` | `claude` 실행 파일 경로. 기본값은 `PATH`의 `claude`입니다. |
 | `OCR_CLAUDE_CODE_EFFORT` | Claude Code에 전달하는 추론 강도: `low`(기본값), `medium`, `high`, `xhigh`, `max`, 또는 Claude Code에 맡기는 `auto`. |
 
-`claude` 프로세스는 `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`, `CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` / `CLAUDE_CODE_USE_FOUNDRY` 스위치, `ANTHROPIC_*MODEL` 재정의를 제거한 환경에서 시작합니다. 그래서 셸에 export된 키나 게이트웨이 때문에 리뷰 과금이 구독에서 API로 조용히 바뀌는 일은 없습니다. Anthropic 약관은 수정되지 않은 Claude Code 바이너리를 통해서만 구독 사용을 허용합니다. 자세한 내용은 [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)를 참고하세요.
+`claude` 프로세스는 `ANTHROPIC_LOG`를 제외한 모든 `ANTHROPIC_*` 변수, `CLAUDE_CODE_USE_*` 백엔드 스위치(Bedrock, Vertex, Foundry, 게이트웨이), `CLAUDE_CODE_API_*` 엔드포인트와 키 설정, `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`를 제거한 환경에서 시작합니다. 그래서 셸에 export된 키나 게이트웨이 때문에 리뷰 과금이 구독에서 API로 조용히 바뀌는 일은 없습니다. Anthropic 약관은 수정되지 않은 Claude Code 바이너리를 통해서만 구독 사용을 허용합니다. 자세한 내용은 [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)를 참고하세요.
 
 `ocr llm test`는 URL 대신 실행 파일을 표시합니다:
 

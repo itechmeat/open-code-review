@@ -162,10 +162,10 @@ what it may use.
 | `OCR_CLAUDE_CODE_BIN` | Path of the `claude` executable. Defaults to `claude` on `PATH`. |
 | `OCR_CLAUDE_CODE_EFFORT` | Reasoning effort passed to Claude Code: `low` (default), `medium`, `high`, `xhigh`, `max`, or `auto` to leave the choice to Claude Code. |
 
-The `claude` process starts without `ANTHROPIC_API_KEY`,
-`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`, the
-`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
-`CLAUDE_CODE_USE_FOUNDRY` switches and the `ANTHROPIC_*MODEL` overrides, so a
+The `claude` process starts without any `ANTHROPIC_*` variable except
+`ANTHROPIC_LOG`, without the `CLAUDE_CODE_USE_*` backend switches (Bedrock,
+Vertex, Foundry, gateways), the `CLAUDE_CODE_API_*` endpoint and key settings
+and `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, so a
 key or gateway exported in the shell cannot silently move the review from the
 subscription to API billing. Anthropic's terms allow subscription use only
 through the unmodified Claude Code binary; see
