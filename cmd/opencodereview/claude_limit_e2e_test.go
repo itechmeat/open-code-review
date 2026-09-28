@@ -53,6 +53,7 @@ func TestReviewE2E_ClaudeCodeAccountErrorsStopTheRun(t *testing.T) {
 	}
 	for _, tc := range []struct{ name, failure, want string }{
 		{"usage limit", "", "Claude usage limit reached"},
+		{"session limit", "You've hit your session limit · resets 5pm (Europe/Belgrade)", "resets 5pm (Europe/Belgrade)"},
 		{"not logged in", "Not logged in · Please run /login", "not logged in"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
