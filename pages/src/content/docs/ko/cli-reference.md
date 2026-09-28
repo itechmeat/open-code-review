@@ -132,7 +132,7 @@ ocr r      [flags]   (alias)
 | `--max-tools <n>` | — | 템플릿 기본값 | 서브태스크당 최대 도구 호출 라운드 수. `0`이면 템플릿 기본값(`100`)을 쓰고, 1~49는 `50`으로 올려 맞춥니다. 이 플래그는 상한을 *올리기만* 합니다. 템플릿 기본값보다 낮은 값은 무시됩니다. |
 | `--max-tokens <n>` | — | 설정 또는 템플릿 기본값 | 서브태스크당 프롬프트(입력) 토큰 상한이며 템플릿 기본값은 `200000`입니다. 이 실행에 한해 저장된 `max_tokens` 설정을 덮어씁니다. 출력 상한은 바뀌지 않습니다. `MAX_COMPLETION_TOKENS`를 참고하세요. |
 | `--max-tokens-budget <n>` | — | `0`(무제한) | 리뷰 전체의 입력+출력 토큰 사용량을 제한합니다. LLM 라운드마다 먼저 확인하며, 이미 예산을 넘긴 하위 작업은 발견 사항을 제출할 마지막 라운드를 한 번 받고 `failed(budget)`로 보고됩니다. 이후 하위 작업은 전달되지 않지만 그때까지의 결과는 그대로 내보냅니다. |
-| `--provider <name>` | — | — | 이 실행에 쓸 프로바이더를 고릅니다. `providers`와 `custom_providers` 양쪽의 이름을 모두 받습니다. |
+| `--provider <name>` | — | — | 이 실행에 쓸 프로바이더를 고릅니다. `providers`와 `custom_providers` 양쪽의 이름을 모두 받고, 항목이 필요 없는 내장 프리셋([실행 단위 LLM 선택](#per-run-llm-selection) 참고)도 받습니다. |
 | `--model <name>` | — | — | 이 실행에 한해 해석된 LLM 모델을 덮어씁니다(예: `claude-opus-4-6`). |
 | `--max-git-procs <n>` | — | `16` | 동시에 띄울 git 서브프로세스의 최대 개수. |
 | `--tools <path>` | — | 내장 | 커스텀 JSON 도구 설정 파일 경로. 내장 도구 정의를 덮어씁니다. |
@@ -152,12 +152,33 @@ ocr scan --provider openai --model gpt-5.4 --format json
 ```
 
 `--provider`를 명시하면 일반적인 소스 해석에 앞서 `providers`나 `custom_providers`에
-저장된 항목을 고릅니다. `--provider`가 없으면 OCR은 기존 소스 순서를 그대로
+저장된 항목을 고릅니다. 내장 프리셋은 API 키가 필요 없거나(`claude-code`, `bedrock`)
+그 API 키 환경 변수가 설정돼 있으면 항목도 설정 파일도 필요 없습니다. `--provider`가
+없으면 OCR은 기존 소스 순서를 그대로
 따릅니다. 저장된 설정, 완전한 `OCR_LLM_*` 환경 변수 설정, 완전한 Claude Code 환경
-변수 설정, 그다음 셸 rc 파일 순입니다. `--model`은 어떤 소스가 선택되든 그 안에서
+변수 설정, 셸 rc 파일, 마지막으로 `PATH`의 Claude Code CLI(또는
+`OCR_CLAUDE_CODE_BIN`)를 프로바이더 `claude-code`, 모델 `opus`로 쓰는 순입니다.
+`--model`은 어떤 소스가 선택되든 그 안에서
 모델만 덮어쓰며, 소스 순서 자체는 바꾸지 않습니다. 조건을 다 갖추지 못한 방식은
 섞이지 않고 그대로 다음으로 넘어갑니다. 내장 프로바이더를 골랐다면 자격 증명은
 여전히 해당 프로바이더가 지원하는 환경 변수에서 올 수 있습니다.
+
+```bash
+ocr review --from main --to HEAD                   # 내장 기본값: claude-code, opus
+ocr review --provider claude-code --model sonnet   # providers.claude-code 항목 불필요
+ocr review --provider z-ai-coding --model <id>     # 이번 실행만 다른 프로바이더
+ocr config set provider z-ai-coding                # 영구 기본값
+```
+
+`claude-code` 프로바이더는 환경 변수 두 개를 읽습니다:
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `OCR_CLAUDE_CODE_BIN` | `PATH`의 `claude` | Claude Code 실행 파일 경로. |
+| `OCR_CLAUDE_CODE_EFFORT` | `low` | `claude`에 전달하는 추론 강도: `low`, `medium`, `high`, `xhigh`, `max`, `auto`. |
+
+이 프로바이더와 모델, 그리고 API 자격 증명을 `claude` 프로세스에서 떼어 두는 방식은
+[설정](../configuration/#claude-code-subscription)을 참고하세요.
 
 ### 모드 {#modes}
 
@@ -348,6 +369,11 @@ ocr review --format json | jq .summary   # stdout은 JSON 문서 하나입니다
 | `0` | 리뷰가 끝났습니다(코멘트가 0건일 수도, 치명적이지 않은 경고가 있을 수도 있습니다). |
 | `1` | 치명적 오류입니다. 잘못된 플래그, LLM 엔드포인트 해석 실패, 그룹별 서브 Agent 전멸 등이며 오류 내용은 stderr에 출력됩니다. |
 | `3` | 부분 리뷰입니다. 결과(지적, `session_id`, 커버리지)는 출력됐지만 선택된 파일 일부가 실패했습니다(프로바이더 요청 한도, 타임아웃 등). stderr에 세션이 표시되며, 실패한 파일은 `ocr review --resume <session-id>`에 같은 `--from`/`--to`/`--commit`을 붙여 리뷰하세요. `--max-tokens-budget` 때문에만 건너뛴 파일은 세지 않고, `--allow-partial`을 주면 `0`이 됩니다. |
+
+프로바이더가 실행 전체에 대해 요청 처리를 멈추면(예: `claude-code` 구독 사용량 한도)
+OCR은 이후 그룹을 디스패치하지 않고, 이미 나온 결과를 유지하며, 재개 안내 앞에
+`[ocr] Run stopped early: <reason>`을 출력합니다. 이후 실행은 `3`으로 끝나고, 리뷰된
+파일이 하나도 없으면 `1`로 끝납니다.
 
 치명적이지 않은 경고(서브 Agent 하나 실패, 파일이 토큰 한계 초과 등)는 실행 중간에
 출력되고, JSON 모드에서는 `warnings` 배열에 담깁니다.
@@ -572,7 +598,7 @@ ocr config model                           Interactive model selection
 - **`set`** — 설정값 하나를 대화 없이 기록합니다. `effort`는 `low` / `medium` /
   `high`를 받아 모든 실행의 기본 리뷰 강도를 정하며, `--effort`가 실행 단위로 이를
   덮어씁니다.
-- **`get`** — `set`과 같은 점 구분 키(`provider`, `providers.<name>.model`, `llm.url` 등)로 저장된 값을 출력합니다. 문자열은 그대로, 객체는 JSON으로 출력하며, `model`은 활성 프로바이더의 모델을 알려 주고, 키를 생략하면 파일 전체를 출력합니다. API 키, 토큰, 토큰 성격의 헤더와 env 값은 항상 가려집니다. 설정되지 않은 키는 `1`로 끝납니다.
+- **`get`** — `set`과 같은 점 구분 키(`provider`, `providers.<name>.model`, `llm.url` 등)로 저장된 값을 출력합니다. 문자열은 그대로, 객체는 JSON으로 출력하며, `model`은 활성 프로바이더의 모델을 알려 주고, 키를 생략하면 파일 전체를 출력합니다. API 키, 토큰, 토큰 성격의 헤더와 env 값은 항상 가려집니다. 설정되지 않은 키는 `1`로 끝납니다. 단 `provider`는 예외로, 저장된 프로바이더가 없고 `claude` 실행 파일을 찾을 수 있으면 `claude-code`를 출력하고 그 출처를 stderr에 설명합니다.
 - **`unset`** — 저장된 키를 지웁니다. `provider`, `max_tokens`, `effort`,
   `custom_providers.<name>`, `mcp_servers.<name>`을 지원합니다. `effort`를 지우면
   기본값인 `medium` 프리셋으로 돌아갑니다. 지운 프로바이더가 활성 상태였다면
@@ -599,8 +625,13 @@ Sub-commands:
 ### `ocr llm test` {#ocr-llm-test}
 
 ```text
-ocr llm test
+ocr llm test [--provider <name>] [--model <name>]
 ```
+
+| 플래그 | 설명 |
+|---|---|
+| `--provider <name>` | 기본 프로바이더 대신 이 프로바이더를 테스트합니다. 항목이 필요 없는 내장 프리셋([실행 단위 LLM 선택](#per-run-llm-selection) 참고)은 항목 없이 쓸 수 있습니다. |
+| `--model <name>` | 이 테스트의 모델을 덮어씁니다. |
 
 `ocr review`와 똑같은 방식으로 LLM 엔드포인트를 해석한 뒤,
 [`internal/config/testconnection/task.json`](https://github.com/alibaba/open-code-review/blob/main/internal/config/testconnection/task.json)에
@@ -613,6 +644,8 @@ Model:  <effective model>
 <the model's reply>
 ✓ Connection test successful
 ```
+
+`claude-code`에서는 `URL:` 줄이 `CLI:`로 바뀌어 해석된 `claude` 실행 파일을 보여 주고, 프로바이더가 내장 기본값에서 왔다면 `Source:`는 `claude CLI on PATH`입니다. `bedrock`에서는 `Region:`과 `Profile:`로 바뀝니다.
 
 0이 아닌 종료 코드는 엔드포인트 설정이 덜 됐거나 요청이 실패했다는(네트워크·인증·모델
 오류) 뜻입니다. 둘 중 무엇인지는 오류 메시지가 알려 줍니다.
