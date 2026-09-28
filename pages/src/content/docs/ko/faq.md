@@ -16,6 +16,7 @@ sidebar:
 no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL,
 ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/
 ANTHROPIC_MODEL must be set
+installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work
 ```
 
 OCR이 엔드포인트 해석 체인을 끝까지
@@ -28,6 +29,10 @@ OCR이 엔드포인트 해석 체인을 끝까지
 - `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`을 export 하거나,
 - 이미 Claude Code를 쓰고 있다면 `ANTHROPIC_BASE_URL` /
   `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`을 export 하세요.
+
+마지막 줄은 해석 체인의 마지막 소스를 가리킵니다. Claude Code를 설치하고 로그인하거나(`claude` 실행 후
+`/login`), `PATH` 밖에 설치했다면 `OCR_CLAUDE_CODE_BIN`을 설정하면 OCR이
+[`claude-code` 프로바이더](../configuration/#claude-code-subscription)로 대체합니다.
 
 그런 다음 `ocr llm test`로 연결을 확인하고 리뷰를 다시 돌리세요.
 
