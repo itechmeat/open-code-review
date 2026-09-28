@@ -17,6 +17,7 @@ the steps you ran and the full output.
 no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL,
 ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/
 ANTHROPIC_MODEL must be set
+installing Claude Code (the claude CLI, logged in) or configuring a provider with 'ocr config provider' would make ocr work
 ```
 
 OCR ran the full endpoint-resolution chain ([Configuration](../configuration/#reuse-existing-environment-variables))
@@ -27,6 +28,10 @@ and didn't find a complete `(URL, token, model)` triple. Either:
 - Export `OCR_LLM_URL` / `OCR_LLM_TOKEN` / `OCR_LLM_MODEL`, **or**
 - Export `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` /
   `ANTHROPIC_MODEL` if you already use Claude Code.
+
+The last line points to the final source in the chain: install Claude Code and log in
+(`claude`, then `/login`), or set `OCR_CLAUDE_CODE_BIN` when it is installed outside
+`PATH`, and OCR falls back to the [`claude-code` provider](../configuration/#claude-code-subscription).
 
 Then `ocr llm test` to verify connectivity before retrying the review.
 
