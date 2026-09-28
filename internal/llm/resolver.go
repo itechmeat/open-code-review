@@ -534,12 +534,19 @@ func tryProviderConfig(cfg configFile, modelOverride string) (ResolvedEndpoint, 
 		model = preset.DefaultModel
 	}
 
-	// Build available model list for validation.
+	// Build available model list for validation. A model the user configured
+	// on purpose is accepted on the command line too, even when the preset
+	// list predates it.
 	var availableModels []string
 	if isPreset {
 		availableModels = append(availableModels, preset.Models...)
 	}
 	availableModels = append(availableModels, entry.Models...)
+	for _, configured := range []string{entry.Model, cfg.Model} {
+		if configured != "" {
+			availableModels = append(availableModels, configured)
+		}
+	}
 
 	// Preset lists can lag provider catalogs, so they guide interactive selection
 	// without preventing a per-run override. A custom provider's configured list
