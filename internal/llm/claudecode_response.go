@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -56,7 +57,11 @@ func parseClaudeCodeResult(stdout []byte, structured bool, model string) (*ChatR
 		return nil, fmt.Errorf("%w %q: %v", errClaudeCodeUnparsable, truncateForError(string(stdout)), err)
 	}
 	if res.IsError {
-		return nil, classifyClaudeCodeFailure(res.Result)
+		msg := res.Result
+		if strings.TrimSpace(msg) == "" {
+			msg = res.Subtype
+		}
+		return nil, classifyClaudeCodeFailure(msg)
 	}
 
 	msg := ResponseMessage{Role: "assistant"}
@@ -148,5 +153,9 @@ func truncateForError(s string) string {
 	if len(s) <= limit {
 		return s
 	}
-	return "…" + s[len(s)-limit:]
+	cut := len(s) - limit
+	for cut < len(s) && !utf8.RuneStart(s[cut]) {
+		cut++
+	}
+	return "…" + s[cut:]
 }
