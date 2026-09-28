@@ -355,9 +355,10 @@ ocr review --format json | jq .summary   # stdout 是单个 JSON 文档
 | `1` | 致命错误——参数错误、无法解析 LLM 端点、所有 per-file 子 agent 失败等。错误文本打印到 stderr。 |
 | `3` | 部分评审——结果（发现、`session_id`、覆盖率）已输出，但部分选中文件失败（如 provider 限流或超时）。stderr 给出会话 ID；用 `ocr review --resume <session-id>` 加相同的 `--from`/`--to`/`--commit` 评审失败的文件。仅因 `--max-tokens-budget` 跳过的文件不计入，`--allow-partial` 会改为 `0`。 |
 
-当 provider 在整个运行中停止服务（例如 `claude-code` 的订阅用量上限）时，OCR 不再分发
-后续分组，保留已经得到的结果，并在续跑提示之前打印 `[ocr] Run stopped early: <reason>`。
-随后运行以 `3` 退出；若没有任何文件完成评审，则以 `1` 退出。
+当 provider 在整个运行中停止服务（例如 `claude-code` 的订阅用量或会话上限）时，OCR 不再分发
+后续文件，保留已经得到的结果，并在续跑提示之前打印 `[ocr] Run stopped early: <reason>`。
+随后 `ocr review` 以 `3` 退出，若没有任何文件完成评审则以 `1` 退出；`ocr scan` 在至少扫描了
+一个文件时以 `0` 退出并给出 `run_stopped` 警告，否则以 `1` 退出。
 
 非致命警告（单个子 agent 失败、某文件超过 token 阈值等）内联打印；JSON 模式下
 会加入 `warnings` 数组。
