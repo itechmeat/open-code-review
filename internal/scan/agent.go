@@ -54,10 +54,13 @@ type Args struct {
 	MaxConcurrency        int
 	ConcurrentTaskTimeout int
 	Model                 string
-	EndpointSource        string
-	Background            string
-	GitRunner             *gitcmd.Runner
-	Session               *session.SessionHistory
+	// Provider names the provider in the run-stop message; empty means an
+	// unnamed one.
+	Provider       string
+	EndpointSource string
+	Background     string
+	GitRunner      *gitcmd.Runner
+	Session        *session.SessionHistory
 	// Resume is an optional read-only checkpoint index from a previous scan
 	// session.
 	Resume *session.ResumeState
@@ -108,6 +111,7 @@ type Agent struct {
 	scanFingerprints map[string]string
 	projectSummary   string // populated post-run by maybeRunProjectSummary
 	budgetExceeded   bool   // set when the token budget gate stopped dispatch; written only by dispatchBatch's loop
+	stop             llm.RunStop
 }
 
 // ProjectSummary returns the markdown project-level summary produced after
@@ -376,8 +380,11 @@ func (a *Agent) Run(ctx context.Context) ([]model.LlmComment, error) {
 		telemetry.RecordCommentsGenerated(ctx, int64(len(comments)))
 	}
 
-	// Project-level summary runs after all batches; never blocks return.
-	a.maybeRunProjectSummary(ctx, comments)
+	// Project-level summary runs after all batches; never blocks return. After
+	// a run stop its request could only fail.
+	if a.StoppedBy() == nil {
+		a.maybeRunProjectSummary(ctx, comments)
+	}
 
 	// Join background memory compression before anything finalizes the session.
 	// Those jobs are cancelled rather than awaited when a conversation ends, so
@@ -570,6 +577,9 @@ func (a *Agent) dispatchSubtasks(ctx context.Context) ([]model.LlmComment, error
 		if err := ctx.Err(); err != nil {
 			return a.args.CommentCollector.Comments(), err
 		}
+		if a.StoppedBy() != nil {
+			break
+		}
 		// Snapshot the collector so we can isolate comments added by *this*
 		// batch and feed them into the per-batch dedup hook.
 		batchStart := a.args.CommentCollector.Snapshot()
@@ -593,7 +603,10 @@ func (a *Agent) dispatchSubtasks(ctx context.Context) ([]model.LlmComment, error
 			a.args.CommentWorkerPool.Await()
 		}
 
-		dedupCheckpoints := a.maybeRunDedup(ctx, bi, batchStart)
+		var dedupCheckpoints map[string][]model.LlmComment
+		if a.StoppedBy() == nil {
+			dedupCheckpoints = a.maybeRunDedup(ctx, bi, batchStart)
+		}
 		a.recordBatchCheckpoints(checkpoints, batchStart, dedupCheckpoints)
 
 		// The per-file budget gate inside dispatchBatch tripped — stop
@@ -605,6 +618,9 @@ func (a *Agent) dispatchSubtasks(ctx context.Context) ([]model.LlmComment, error
 
 	failed := atomic.LoadInt64(&a.subtaskFailed)
 	if failed > 0 && failed == dispatched {
+		if stopErr := a.StoppedBy(); stopErr != nil {
+			return nil, fmt.Errorf("scan stopped before any file was scanned: %w", stopErr)
+		}
 		return nil, fmt.Errorf("all %d file scan(s) failed — check your LLM configuration and API key", dispatched)
 	}
 	return a.args.CommentCollector.Comments(), nil
@@ -710,6 +726,9 @@ func (a *Agent) dispatchBatch(ctx context.Context, batchIdx int, batch []model.S
 			checkpointsMu.Unlock()
 			continue
 		}
+		if a.StoppedBy() != nil {
+			break
+		}
 
 		// Per-file budget look-ahead. Stop before acquiring a slot so we
 		// don't even queue work that would blow the budget.
@@ -734,6 +753,10 @@ func (a *Agent) dispatchBatch(ctx context.Context, batchIdx int, batch []model.S
 		case <-ctx.Done():
 			wg.Wait()
 			return dispatched, budgetHit, checkpoints, ctx.Err()
+		}
+		if a.StoppedBy() != nil {
+			<-sem // a file in flight hit a run stop while this one waited for its slot
+			break
 		}
 
 		dispatched++
@@ -760,6 +783,7 @@ func (a *Agent) dispatchBatch(ctx context.Context, batchIdx int, batch []model.S
 					telemetry.AnyToAttr("file.path", it.Path),
 					telemetry.AnyToAttr("batch.index", batchIdx))
 				a.recordWarning("scan_subtask_error", it.Path, err.Error())
+				a.stopRunOn(err)
 				return
 			}
 			if !completedOK {
@@ -805,6 +829,9 @@ func (a *Agent) executeSubtask(ctx context.Context, it model.ScanItem) (bool, st
 	}
 
 	planGuidance := a.maybeRunPlan(ctx, it, rule)
+	if err := a.StoppedBy(); err != nil {
+		return false, "", err
+	}
 
 	messages := a.renderMessages(it, rule, planGuidance)
 
@@ -877,6 +904,9 @@ func (a *Agent) maybeRunPlan(ctx context.Context, it model.ScanItem, rule string
 	})
 	if err != nil {
 		rec.SetError(err, time.Since(startTime))
+		if a.stopRunOn(err) {
+			return noPlan
+		}
 		fmt.Fprintf(stdout.Writer(), "[ocr] scan plan failed for %s: %v (falling back to plan-less)\n", it.Path, err)
 		return noPlan
 	}
