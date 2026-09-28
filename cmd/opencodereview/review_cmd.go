@@ -320,6 +320,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 			failureReport = nil
 		}
 		emitFailureUsage(ag, time.Since(startTime), opts.outputFormat, llmIdentity, failureReport)
+		printRunStop(ag)
 		if id := ag.SessionID(); id != "" {
 			fmt.Fprintf(os.Stderr, "[ocr] Session: %s (retry with: --resume %s)\n", id, id)
 		}
@@ -330,12 +331,21 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 	}
 	if perr := partialResultError(manifest, opts.allowPartial); perr != nil {
 		span.SetStatus(codes.Error, perr.Error())
+		printRunStop(ag)
 		if id := ag.SessionID(); id != "" {
 			fmt.Fprintf(os.Stderr, "[ocr] Session: %s (review the failed files with: ocr review --resume %s, plus the same --from/--to/--commit)\n", id, id)
 		}
 		return perr
 	}
 	return nil
+}
+
+// printRunStop tells the user why a run ended before every file was
+// dispatched, right before the resume hint that picks up the rest.
+func printRunStop(ag *agent.Agent) {
+	if msg := ag.RunStopMessage(); msg != "" {
+		fmt.Fprintf(os.Stderr, "[ocr] Run stopped early: %s\n", msg)
+	}
 }
 
 // partialReviewError reports a review that published results while some

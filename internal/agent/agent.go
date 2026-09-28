@@ -193,6 +193,7 @@ type Agent struct {
 	runner          *llmloop.Runner
 	resumeInfo      *ResumeInfo
 	budgetExceeded  atomic.Bool // set when a token/tool-call budget gate stopped dispatch
+	stop            runStop     // set when a provider error stopped dispatch for the whole run
 
 	fileGroups []FileGroup // semantic grouping result, stored for JSON output
 
@@ -682,6 +683,9 @@ func (a *Agent) dispatchSubtasks(ctx context.Context) ([]model.LlmComment, error
 dispatchLoop:
 	for gi := range groups {
 		group := groups[gi]
+		if a.StoppedBy() != nil {
+			break
+		}
 
 		// Per-group budget look-ahead, checked BEFORE acquiring the semaphore:
 		// if tokens already spent plus an estimate of this group's cost would
@@ -723,8 +727,8 @@ dispatchLoop:
 		case <-ctx.Done():
 			break dispatchLoop
 		}
-		if ctx.Err() != nil {
-			<-sem // release the slot acquired concurrently with cancellation
+		if ctx.Err() != nil || a.StoppedBy() != nil {
+			<-sem // release the slot acquired concurrently with cancellation or a run stop
 			break dispatchLoop
 		}
 		dispatched += int64(len(group.Diffs))
@@ -773,6 +777,7 @@ dispatchLoop:
 				telemetry.ErrorEvent(groupCtx, "subtask.error", err,
 					telemetry.AnyToAttr("group.label", g.Label))
 				a.recordWarning("subtask_error", g.Label, err.Error())
+				a.stopRunOn(err)
 				return
 			}
 			if !completed {
@@ -850,6 +855,9 @@ dispatchLoop:
 		// hitting the error. Return those comments instead of discarding them.
 		if comments := a.args.CommentCollector.Comments(); len(comments) > 0 {
 			return comments, nil
+		}
+		if stopErr := a.StoppedBy(); stopErr != nil {
+			return nil, fmt.Errorf("review stopped before any file was reviewed: %w", stopErr)
 		}
 		return nil, fmt.Errorf("all %d file review(s) failed — check your LLM configuration and API key", dispatched)
 	}
@@ -1413,6 +1421,9 @@ func (a *Agent) executeGroupSubtask(ctx context.Context, g FileGroup) (bool, *su
 	case planRequired:
 		var err error
 		planResult, err = a.executeGroupPlanPhase(ctx, g, concatenatedDiffs, changeFilesExcludingGroup, rule)
+		if errors.Is(err, llm.ErrFatalForRun) {
+			return false, nil, err
+		}
 		if err != nil {
 			fmt.Fprintf(stdout.Writer(), "[ocr] Plan phase failed for group %q: %v (continuing without plan)\n", groupKey, err)
 			telemetry.Eventf(ctx, "plan.failed", err.Error(),
@@ -1500,6 +1511,7 @@ func (a *Agent) executeGroupSubtask(ctx context.Context, g FileGroup) (bool, *su
 			if round == 1 {
 				return false, nil, err
 			}
+			a.stopRunOn(err)
 			a.recordWarning("review_round_failed", groupKey, fmt.Sprintf("round %d: %v", round, err))
 			fmt.Fprintf(stdout.Writer(), "[ocr] Round %d failed for group %q: %v (keeping earlier findings)\n", round, groupKey, err)
 			break
