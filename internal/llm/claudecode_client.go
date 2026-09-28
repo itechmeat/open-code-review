@@ -176,8 +176,12 @@ func ClaudeCodeBinary() (string, error) { return claudeCodeBinary() }
 func claudeCodeBinary() (string, error) {
 	bin := strings.TrimSpace(os.Getenv(envClaudeCodeBin))
 	if bin != "" {
-		if _, err := os.Stat(bin); err != nil {
+		fi, err := os.Stat(bin)
+		if err != nil {
 			return "", fmt.Errorf("claude-code: %s=%q: %w", envClaudeCodeBin, bin, err)
+		}
+		if !fi.Mode().IsRegular() {
+			return "", fmt.Errorf("claude-code: %s=%q is not a regular file; point it at the claude executable", envClaudeCodeBin, bin)
 		}
 	} else {
 		var err error
