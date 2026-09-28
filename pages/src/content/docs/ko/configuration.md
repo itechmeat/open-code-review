@@ -143,7 +143,7 @@ Model:  opus
 
 `OCR_CLAUDE_CODE_BIN`이 실행 파일을 정했다면 `Source:`는 `OCR_CLAUDE_CODE_BIN`이고, 프로바이더를 `--provider`나 설정 파일로 골랐다면 `provider:claude-code`입니다.
 
-Claude Code가 구독 사용량 한도를 보고하면 `ocr review`는 남은 그룹의 디스패치를 멈추고, 이미 나온 결과를 유지하며, `[ocr] Run stopped early: ...`를 출력한 뒤 `ocr review --resume <id>` 안내와 함께 `3`으로 종료합니다(아직 아무것도 리뷰하지 못했다면 `1`로 종료). 한도 기간이 초기화된 뒤 재개하거나 `--concurrency`를 낮추세요. `ocr scan`은 아직 이 메시지를 출력하지 않습니다. `claude`가 로그인되어 있지 않거나 이 프로바이더에 비해 너무 오래된 경우에도 실행이 같은 방식으로 멈춥니다. `claude`를 실행해 `/login`하거나 Claude Code를 업데이트한 뒤 재개하세요.
+Claude Code가 플랜의 사용량 한도나 세션 한도에 도달했다고 보고하면(`Claude AI usage limit reached`, `You've hit your limit`, `You've hit your session limit · resets 5pm (Europe/Belgrade)`) `ocr review`와 `ocr scan`은 남은 파일의 디스패치를 멈추고, 이미 나온 결과를 유지하며, `[ocr] Run stopped early: ...`를 출력합니다. Claude Code가 초기화 시각을 알려 주면 메시지 끝에 붙습니다. 이후 `ocr review`는 `ocr review --resume <id>` 안내와 함께 `3`으로 종료하고, `ocr scan`은 개별 파일이 실패했을 때처럼 `run_stopped` 경고와 `ocr scan --resume <id>` 안내를 남기고 `0`으로 종료합니다. 아직 아무것도 리뷰하지 못했다면 둘 다 `1`로 종료합니다. 한도가 초기화된 뒤 재개하거나 `--concurrency`를 낮추세요. 일시적인 요청 제한(HTTP `429`, `rate limit` 메시지, API 과부하)은 한도가 아닙니다. 요청은 2/4/8초 백오프로 최대 세 번 재시도되고, 그래도 실패하면 해당 파일만 실패합니다. `claude`가 로그인되어 있지 않거나 이 프로바이더에 비해 너무 오래된 경우에도 실행이 같은 방식으로 멈춥니다. `claude`를 실행해 `/login`하거나 Claude Code를 업데이트한 뒤 재개하세요.
 
 ### 프로바이더 해석 순서 {#provider-resolution-order}
 

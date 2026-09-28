@@ -169,10 +169,15 @@ Model:  opus
 当由 `OCR_CLAUDE_CODE_BIN` 选定可执行文件时，`Source:` 显示 `OCR_CLAUDE_CODE_BIN`；
 当 provider 由 `--provider` 或配置文件选定时，显示 `provider:claude-code`。
 
-当 Claude Code 报告订阅用量上限时，`ocr review` 停止分发剩余的分组，保留已经得到的
-结果，打印 `[ocr] Run stopped early: ...`，并以 `3` 退出，附带
-`ocr review --resume <id>` 提示（尚未评审任何文件时以 `1` 退出）。请在额度窗口重置后
-续跑，或降低 `--concurrency`。`ocr scan` 目前还不会打印这条消息。
+当 Claude Code 报告套餐的用量或会话上限已用尽（`Claude AI usage limit reached`、
+`You've hit your limit`、`You've hit your session limit · resets 5pm (Europe/Belgrade)`）时，
+`ocr review` 和 `ocr scan` 停止分发剩余的文件，保留已经得到的结果，并打印
+`[ocr] Run stopped early: ...`；若 Claude Code 给出了重置时间，消息末尾会附上它。
+随后 `ocr review` 以 `3` 退出，附带 `ocr review --resume <id>` 提示；`ocr scan` 与单个
+文件失败时一样以 `0` 退出，附带 `run_stopped` 警告和 `ocr scan --resume <id>` 提示。
+尚未评审任何文件时，两者都以 `1` 退出。请在上限重置后续跑，或降低 `--concurrency`。
+临时限流（HTTP `429`、`rate limit` 消息或 API 过载）不属于上限：请求会按 2/4/8 秒的
+退避最多重试三次，之后仅该文件失败。
 `claude` 未登录或版本过旧、无法支持该 provider 时，运行也会以同样方式停止：运行
 `claude` 并执行 `/login`，或更新 Claude Code，然后续跑。
 
