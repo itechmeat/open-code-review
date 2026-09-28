@@ -343,7 +343,7 @@ func executeReviewContext(ctx context.Context, opts reviewOptions) (retErr error
 
 // printRunStop tells the user why a run ended before every file was
 // dispatched, right before the resume hint that picks up the rest.
-func printRunStop(ag *agent.Agent) {
+func printRunStop(ag interface{ RunStopMessage() string }) {
 	if msg := ag.RunStopMessage(); msg != "" {
 		fmt.Fprintf(os.Stderr, "[ocr] Run stopped early: %s\n", msg)
 	}
