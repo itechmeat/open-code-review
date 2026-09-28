@@ -155,10 +155,9 @@ ocr config set provider claude-code                 # 在配置文件中固定�
 | `OCR_CLAUDE_CODE_BIN` | `claude` 可执行文件的路径。默认使用 `PATH` 上的 `claude`。 |
 | `OCR_CLAUDE_CODE_EFFORT` | 传给 Claude Code 的推理强度：`low`（默认）、`medium`、`high`、`xhigh`、`max`，或 `auto`（交由 Claude Code 决定）。 |
 
-`claude` 进程启动时不带 `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
-`ANTHROPIC_BASE_URL`、`ANTHROPIC_CUSTOM_HEADERS`，不带
-`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
-`CLAUDE_CODE_USE_FOUNDRY` 开关，也不带 `ANTHROPIC_*MODEL` 覆盖，因此 shell 中导出的
+`claude` 进程启动时不带任何 `ANTHROPIC_*` 变量（`ANTHROPIC_LOG` 除外），
+不带 `CLAUDE_CODE_USE_*` 后端开关（Bedrock、Vertex、Foundry、网关），不带
+`CLAUDE_CODE_API_*` 地址与密钥设置，也不带 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`，因此 shell 中导出的
 key 或网关无法悄悄把评审从订阅计费切换到 API 计费。Anthropic 的条款只允许通过
 未经修改的 Claude Code 程序使用订阅，详见
 [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)。

@@ -174,10 +174,10 @@ ocr config set provider claude-code                 # закрепить в фа
 | `OCR_CLAUDE_CODE_BIN` | Путь к исполняемому файлу `claude`. По умолчанию — `claude` из `PATH`. |
 | `OCR_CLAUDE_CODE_EFFORT` | Уровень рассуждений, передаваемый Claude Code: `low` (по умолчанию), `medium`, `high`, `xhigh`, `max` или `auto`, чтобы выбор сделал сам Claude Code. |
 
-Процесс `claude` запускается без `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
-`ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`, без переключателей
-`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
-`CLAUDE_CODE_USE_FOUNDRY` и без переопределений `ANTHROPIC_*MODEL`, поэтому
+Процесс `claude` запускается без переменных `ANTHROPIC_*` (кроме
+`ANTHROPIC_LOG`), без переключателей бэкенда `CLAUDE_CODE_USE_*` (Bedrock,
+Vertex, Foundry, шлюзы), без настроек адреса и ключа `CLAUDE_CODE_API_*` и без
+`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, поэтому
 ключ или шлюз, экспортированные в оболочке, не могут незаметно перевести оплату
 ревью с подписки на API. Условия Anthropic разрешают использовать подписку только
 через немодифицированный исполняемый файл Claude Code; см.

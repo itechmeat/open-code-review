@@ -164,10 +164,9 @@ ocr config set provider claude-code                 # 設定ファイルに固�
 | `OCR_CLAUDE_CODE_BIN` | `claude` 実行ファイルのパス。デフォルトは `PATH` 上の `claude`。 |
 | `OCR_CLAUDE_CODE_EFFORT` | Claude Code に渡す推論の労力: `low`（デフォルト）、`medium`、`high`、`xhigh`、`max`、または Claude Code に任せる `auto`。 |
 
-`claude` プロセスは `ANTHROPIC_API_KEY`、`ANTHROPIC_AUTH_TOKEN`、
-`ANTHROPIC_BASE_URL`、`ANTHROPIC_CUSTOM_HEADERS`、
-`CLAUDE_CODE_USE_BEDROCK` / `CLAUDE_CODE_USE_VERTEX` /
-`CLAUDE_CODE_USE_FOUNDRY` の切り替え、`ANTHROPIC_*MODEL` の上書きを取り除いた
+`claude` プロセスは `ANTHROPIC_LOG` 以外のすべての `ANTHROPIC_*` 変数、
+`CLAUDE_CODE_USE_*` のバックエンド切り替え（Bedrock、Vertex、Foundry、ゲートウェイ）、
+`CLAUDE_CODE_API_*` のエンドポイントとキーの設定、`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST` を取り除いた
 環境で起動します。そのため、シェルでエクスポートされたキーやゲートウェイによって、
 レビューの課金がサブスクリプションから API へ黙って切り替わることはありません。
 Anthropic の規約では、サブスクリプションの利用は無改変の Claude Code
