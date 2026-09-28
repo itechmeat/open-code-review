@@ -370,6 +370,29 @@ func TestClaudeCodeBinarySkipsTerminalShims(t *testing.T) {
 	}
 }
 
+func TestPickClaudeCodeSkipsBatchShims(t *testing.T) {
+	a, b := filepath.Join("x", "npm"), filepath.Join("x", "native")
+	found := map[string]string{
+		filepath.Join(a, "claude"): filepath.Join(a, "claude.cmd"),
+		filepath.Join(b, "claude"): filepath.Join(b, "claude.exe"),
+	}
+	lookPath := func(file string) (string, error) {
+		if path, ok := found[file]; ok {
+			return path, nil
+		}
+		return "", errors.New("not found")
+	}
+	if got, err := pickClaudeCode([]string{a, b}, "claude", lookPath); err != nil || got != found[filepath.Join(b, "claude")] {
+		t.Errorf("pickClaudeCode() = %q, %v; want the native executable later on PATH", got, err)
+	}
+	if got, err := pickClaudeCode([]string{a}, "claude", lookPath); err != nil || got != found[filepath.Join(a, "claude")] {
+		t.Errorf("pickClaudeCode() = %q, %v; with only a batch shim it is returned for the hint", got, err)
+	}
+	if _, err := pickClaudeCode([]string{"", filepath.Join("x", "empty")}, "claude", lookPath); err == nil {
+		t.Error("expected an error when nothing is found")
+	}
+}
+
 func TestClaudeCodeClientRetriesUnclassifiedAPIErrorOnce(t *testing.T) {
 	dump := useFakeClaude(t, "flaky")
 	resp, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())

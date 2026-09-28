@@ -187,8 +187,7 @@ func claudeCodeBinary() (string, error) {
 	}
 	// cmd.exe re-parses a batch shim's arguments, mangling the JSON schema's
 	// quotes, and killing the shim on cancel leaves the real CLI running.
-	switch strings.ToLower(filepath.Ext(bin)) {
-	case ".cmd", ".bat":
+	if isBatchShim(bin) {
 		return "", fmt.Errorf("claude-code: %s is a batch shim; install the native claude executable or point %s at it", bin, envClaudeCodeBin)
 	}
 	return bin, nil
@@ -198,12 +197,20 @@ func claudeCodeBinary() (string, error) {
 // the real CLI to wrap interactive sessions; a headless run wants the CLI.
 var claudeCodeShimDirs = []string{"cmux-cli-shims"}
 
-// lookPathSkippingShims finds name on PATH, preferring the first match outside
-// a known shim directory and falling back to the shim when nothing else is
-// installed.
+// lookPathSkippingShims finds name on PATH, preferring the first native
+// executable outside a known shim directory and falling back to a shim when
+// nothing else is installed.
 func lookPathSkippingShims(name string) (string, error) {
+	return pickClaudeCode(filepath.SplitList(os.Getenv("PATH")), name, exec.LookPath)
+}
+
+// pickClaudeCode searches dirs in order: native executables outside terminal
+// shim directories, then those inside, then the first batch shim, which
+// claudeCodeBinary rejects with a hint. An npm-installed claude.cmd early on a
+// Windows PATH must not hide the native claude.exe installed after it.
+func pickClaudeCode(dirs []string, name string, lookPath func(string) (string, error)) (string, error) {
 	var kept, shims []string
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+	for _, dir := range dirs {
 		if dir == "" {
 			continue
 		}
@@ -220,14 +227,33 @@ func lookPathSkippingShims(name string) (string, error) {
 			kept = append(kept, dir)
 		}
 	}
-	for _, dirs := range [][]string{kept, shims} {
-		for _, dir := range dirs {
-			if path, err := exec.LookPath(filepath.Join(dir, name)); err == nil {
+	batch := ""
+	for _, group := range [][]string{kept, shims} {
+		for _, dir := range group {
+			path, err := lookPath(filepath.Join(dir, name))
+			if err != nil {
+				continue
+			}
+			if !isBatchShim(path) {
 				return path, nil
+			}
+			if batch == "" {
+				batch = path
 			}
 		}
 	}
-	return exec.LookPath(name)
+	if batch != "" {
+		return batch, nil
+	}
+	return lookPath(name)
+}
+
+func isBatchShim(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".cmd", ".bat":
+		return true
+	}
+	return false
 }
 
 func claudeCodeEnv(environ []string) []string {
