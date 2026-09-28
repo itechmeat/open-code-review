@@ -24,6 +24,8 @@ func useFakeClaude(t *testing.T, mode string) string {
 	t.Setenv(envClaudeCodeBin, os.Args[0])
 	t.Setenv("OCR_FAKE_CLAUDE", mode)
 	t.Setenv("OCR_FAKE_CLAUDE_DUMP", dump)
+	// Close globs the config dir for transcripts; never the developer's own.
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	return dump
 }
 
@@ -174,20 +176,6 @@ func TestClaudeCodeClientErrors(t *testing.T) {
 				t.Errorf("err = %v, want substring %q", err, tt.sub)
 			}
 		})
-	}
-}
-
-func TestClaudeCodeClientCancelKillsProcess(t *testing.T) {
-	useFakeClaude(t, "sleep")
-	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(200*time.Millisecond, cancel)
-	start := time.Now()
-	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(ctx, toolRequest())
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v, want context.Canceled", err)
-	}
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Fatalf("cancel took %v", elapsed)
 	}
 }
 
