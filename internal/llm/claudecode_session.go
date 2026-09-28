@@ -43,8 +43,7 @@ func (c *ClaudeCodeClient) completeInThread(ctx context.Context, bin string, req
 			c.remember(req, inv, th.sessionID)
 			return resp, nil
 		}
-		if ctx.Err() != nil || errors.Is(err, ErrClaudeCodeNotLoggedIn) ||
-			errors.Is(err, ErrClaudeCodeUsageLimit) || errors.Is(err, ErrClaudeCodeOutdated) {
+		if ctx.Err() != nil || errors.Is(err, ErrFatalForRun) {
 			return nil, err
 		}
 		// Anything else (a lost or unreadable session) gets one full retry.
