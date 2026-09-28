@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -19,8 +21,9 @@ var (
 
 	// ErrClaudeCodeNotLoggedIn means the claude CLI has no usable login.
 	ErrClaudeCodeNotLoggedIn error = &runFatalError{msg: "claude-code: the claude CLI is not logged in (run `claude` and use /login)"}
-	// ErrClaudeCodeUsageLimit means the Claude plan's usage window is exhausted.
-	ErrClaudeCodeUsageLimit error = &runFatalError{msg: "claude-code: Claude usage limit reached (wait for the limit window or lower --concurrency)"}
+	// ErrClaudeCodeUsageLimit means the Claude plan's usage or session window
+	// is exhausted.
+	ErrClaudeCodeUsageLimit error = &runFatalError{msg: "claude-code: Claude usage limit reached (wait for the limit to reset or lower --concurrency)"}
 	// ErrClaudeCodeOutdated means the installed CLI lacks a flag this client
 	// relies on (--json-schema, --effort, --system-prompt-file).
 	ErrClaudeCodeOutdated error = &runFatalError{msg: "claude-code: the claude CLI is too old for this provider (update Claude Code; tested with 2.1.280)"}
@@ -33,6 +36,11 @@ var (
 	errClaudeCodeUnparsable = errors.New("claude-code: unparsable CLI output")
 
 	claudeCodeThrottleStatus = regexp.MustCompile(`\b(429|529)\b`)
+
+	// The CLI names the reset time after a separator ("· resets 5pm (Zone)");
+	// older releases appended it as "|<unix seconds>".
+	claudeCodeResetsAt   = regexp.MustCompile(`(?i)\bresets\b.*$`)
+	claudeCodeResetEpoch = regexp.MustCompile(`\|\s*(\d{9,})\s*$`)
 )
 
 // claudeCodeResult is the single JSON object `claude -p --output-format json`
@@ -148,14 +156,29 @@ func classifyClaudeCodeFailure(message string) error {
 		return &fatalDetail{ErrClaudeCodeOutdated, truncateForError(msg)}
 	case strings.Contains(lower, "not logged in"), strings.Contains(lower, "/login"), strings.Contains(lower, "invalid api key"):
 		return &fatalDetail{ErrClaudeCodeNotLoggedIn, truncateForError(msg)}
-	case strings.Contains(lower, "usage limit"), strings.Contains(lower, "hit your limit"):
-		return &fatalDetail{ErrClaudeCodeUsageLimit, truncateForError(msg)}
+	case strings.Contains(lower, "usage limit"), strings.Contains(lower, "session limit"), strings.Contains(lower, "hit your limit"):
+		return &fatalDetail{ErrClaudeCodeUsageLimit, claudeCodeLimitDetail(msg)}
 	case strings.Contains(lower, "rate limit"), strings.Contains(lower, "rate_limit"),
 		strings.Contains(lower, "overloaded"), claudeCodeThrottleStatus.MatchString(msg):
 		return fmt.Errorf("%w: %s", ErrClaudeCodeRateLimited, truncateForError(msg))
 	default:
 		return fmt.Errorf("claude-code: %s", truncateForError(msg))
 	}
+}
+
+// claudeCodeLimitDetail reduces a plan-limit message to when the limit resets,
+// the one thing the user can act on; without a reset time the whole message is
+// kept.
+func claudeCodeLimitDetail(msg string) string {
+	if m := claudeCodeResetsAt.FindString(msg); m != "" {
+		return truncateForError(m)
+	}
+	if m := claudeCodeResetEpoch.FindStringSubmatch(msg); m != nil {
+		if sec, err := strconv.ParseInt(m[1], 10, 64); err == nil {
+			return "resets " + time.Unix(sec, 0).UTC().Format("2006-01-02 15:04 UTC")
+		}
+	}
+	return truncateForError(msg)
 }
 
 func truncateForError(s string) string {
