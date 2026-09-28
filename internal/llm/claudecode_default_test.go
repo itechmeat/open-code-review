@@ -80,6 +80,26 @@ func TestResolveFallbackNeverMasksConfiguredSources(t *testing.T) {
 			t.Fatalf("err = %v, want the unresolved-endpoint error", err)
 		}
 	})
+	for name, env := range map[string][2]string{
+		"partial OCR environment":         {"OCR_LLM_URL", "OCR_LLM_TOKEN"},
+		"partial Claude Code environment": {"ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"},
+	} {
+		for _, key := range env {
+			t.Run(name+" "+key, func(t *testing.T) {
+				t.Setenv(key, "https://llm.example.test")
+				_, err := ResolveEndpoint(missingConfigPath(t))
+				if err == nil || !strings.Contains(err.Error(), "no valid LLM endpoint configured") || !strings.Contains(err.Error(), key) {
+					t.Fatalf("err = %v, want the unresolved-endpoint error naming %s", err, key)
+				}
+			})
+		}
+	}
+	t.Run("incomplete llm block is named", func(t *testing.T) {
+		path := writeRawConfig(t, `{"llm":{"url":"https://llm.example.test"}}`)
+		if _, err := ResolveEndpoint(path); err == nil || !strings.Contains(err.Error(), "llm block in "+path) {
+			t.Fatalf("err = %v, want the incomplete llm block named", err)
+		}
+	})
 	t.Run("OCR environment wins", func(t *testing.T) {
 		t.Setenv("OCR_LLM_URL", "https://llm.example.test")
 		t.Setenv("OCR_LLM_TOKEN", "t")
