@@ -428,3 +428,45 @@ func TestClaudeCodeClientDoesNotRetryAccountErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestClaudeCodeClientRetriesRateLimitWithBackoff(t *testing.T) {
+	withRateLimitDelays(t, time.Millisecond, time.Millisecond)
+	dump := useFakeClaude(t, "rate-limited-once")
+	resp, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+	if err != nil {
+		t.Fatalf("a transient rate limit must be retried: %v", err)
+	}
+	if len(resp.Choices[0].Message.ToolCalls) == 0 {
+		t.Error("retry result not returned")
+	}
+	if calls := readAllFakeDumps(t, dump); len(calls) != 2 {
+		t.Errorf("want 2 calls, got %d", len(calls))
+	}
+}
+
+func TestClaudeCodeClientGivesUpOnPersistentRateLimit(t *testing.T) {
+	withRateLimitDelays(t, time.Millisecond, time.Millisecond)
+	dump := useFakeClaude(t, "error-rate-limit")
+	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(context.Background(), toolRequest())
+	if !errors.Is(err, ErrClaudeCodeRateLimited) || errors.Is(err, ErrFatalForRun) {
+		t.Fatalf("err = %v, want a non-fatal rate-limit error", err)
+	}
+	if calls := readAllFakeDumps(t, dump); len(calls) != 4 {
+		t.Errorf("want the first call and three retries, got %d calls", len(calls))
+	}
+}
+
+func TestClaudeCodeClientRateLimitBackoffHonorsContext(t *testing.T) {
+	withRateLimitDelays(t, time.Hour, time.Hour)
+	useFakeClaude(t, "error-rate-limit")
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := NewClaudeCodeClient(ClientConfig{Model: "haiku"}).CompletionsWithCtx(ctx, toolRequest())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want the context deadline", err)
+	}
+	if time.Since(start) > 10*time.Second {
+		t.Error("the backoff must end with the context")
+	}
+}

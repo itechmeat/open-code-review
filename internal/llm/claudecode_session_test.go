@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func readAllFakeDumps(t *testing.T, dump string) []fakeClaudeDump {
@@ -172,5 +173,25 @@ func TestClaudeCodeClientCloseRemovesSessions(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Dir(transcripts[0])); !os.IsNotExist(err) {
 		t.Error("Close must remove the emptied project directory")
+	}
+}
+
+func TestClaudeCodeClientRetriesARateLimitedResumeInPlace(t *testing.T) {
+	withRateLimitDelays(t, time.Millisecond, time.Millisecond)
+	dump := useFakeClaude(t, "resume-rate-limited")
+	c := NewClaudeCodeClient(ClientConfig{Model: "haiku"})
+	t.Cleanup(func() { _ = c.Close() })
+	first, second := loopRequests()
+	for _, req := range []ChatRequest{first, second} {
+		if _, err := c.CompletionsWithCtx(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := readAllFakeDumps(t, dump)
+	if len(calls) != 3 {
+		t.Fatalf("want first, rate-limited resume, resumed retry = 3 calls, got %d", len(calls))
+	}
+	if _, ok := argValue(t, calls[2].Args, "--resume"); !ok {
+		t.Errorf("a rate-limited resume must be retried as a resume, not a fresh session: %q", calls[2].Args)
 	}
 }
