@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -24,7 +25,14 @@ var (
 	// relies on (--json-schema, --effort, --system-prompt-file).
 	ErrClaudeCodeOutdated error = &runFatalError{msg: "claude-code: the claude CLI is too old for this provider (update Claude Code; tested with 2.1.280)"}
 
+	// ErrClaudeCodeRateLimited is a transient throttle (HTTP 429, an overloaded
+	// API). Unlike the plan's usage window it clears within seconds, so it is
+	// retried with backoff instead of stopping the run.
+	ErrClaudeCodeRateLimited = errors.New("claude-code: rate limited by the Claude API")
+
 	errClaudeCodeUnparsable = errors.New("claude-code: unparsable CLI output")
+
+	claudeCodeThrottleStatus = regexp.MustCompile(`\b(429|529)\b`)
 )
 
 // claudeCodeResult is the single JSON object `claude -p --output-format json`
@@ -140,8 +148,11 @@ func classifyClaudeCodeFailure(message string) error {
 		return &fatalDetail{ErrClaudeCodeOutdated, truncateForError(msg)}
 	case strings.Contains(lower, "not logged in"), strings.Contains(lower, "/login"), strings.Contains(lower, "invalid api key"):
 		return &fatalDetail{ErrClaudeCodeNotLoggedIn, truncateForError(msg)}
-	case strings.Contains(lower, "usage limit"), strings.Contains(lower, "hit your limit"), strings.Contains(lower, "rate limit"):
+	case strings.Contains(lower, "usage limit"), strings.Contains(lower, "hit your limit"):
 		return &fatalDetail{ErrClaudeCodeUsageLimit, truncateForError(msg)}
+	case strings.Contains(lower, "rate limit"), strings.Contains(lower, "rate_limit"),
+		strings.Contains(lower, "overloaded"), claudeCodeThrottleStatus.MatchString(msg):
+		return fmt.Errorf("%w: %s", ErrClaudeCodeRateLimited, truncateForError(msg))
 	default:
 		return fmt.Errorf("claude-code: %s", truncateForError(msg))
 	}
