@@ -15,9 +15,9 @@ import (
 )
 
 // fakeClaudeLimitScript answers the grouping call with one group per file,
-// completes the review of the first file it sees and reports a subscription
-// usage limit for every other file. Each non-grouping call appends the file it
-// was about to its log.
+// completes the review of the first file it sees and fails every other file
+// with $FAKE_CLAUDE_FAILURE, a subscription usage limit by default. Each
+// non-grouping call appends the file it was about to its log.
 const fakeClaudeLimitScript = `#!/bin/sh
 state="$(dirname "$0")"
 input="$(cat)"
@@ -43,14 +43,26 @@ if [ "$(cat "$state/first")" = "$file" ]; then
 	printf '%s' '{"type":"result","is_error":false,"result":"","structured_output":{"content":"","tool_calls":[{"name":"task_done","arguments":{"state":"DONE"}}]},"usage":{"input_tokens":1,"output_tokens":1}}'
 	exit 0
 fi
-printf '%s' '{"type":"result","is_error":true,"result":"Claude AI usage limit reached|1760000000"}'
+printf '{"type":"result","is_error":true,"result":"%s"}' "${FAKE_CLAUDE_FAILURE:-Claude AI usage limit reached|1760000000}"
 exit 1
 `
 
-func TestReviewE2E_ClaudeCodeUsageLimitStopsTheRun(t *testing.T) {
+func TestReviewE2E_ClaudeCodeAccountErrorsStopTheRun(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("fake claude is a shell script")
 	}
+	for _, tc := range []struct{ name, failure, want string }{
+		{"usage limit", "", "Claude usage limit reached"},
+		{"not logged in", "Not logged in · Please run /login", "not logged in"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("FAKE_CLAUDE_FAILURE", tc.failure)
+			testClaudeCodeFailureStopsTheRun(t, tc.want)
+		})
+	}
+}
+
+func testClaudeCodeFailureStopsTheRun(t *testing.T, want string) {
 	repoDir := retryTestRepo(t)
 	home := t.TempDir()
 	setTestHome(t, home)
@@ -76,9 +88,9 @@ func TestReviewE2E_ClaudeCodeUsageLimitStopsTheRun(t *testing.T) {
 	if err == nil || exitCodeFor(err) != exitPartial {
 		t.Fatalf("a limit after one reviewed file must exit %d: %v\nstderr: %s", exitPartial, err, errOut)
 	}
-	for _, want := range []string{"Run stopped early: claude-code stopped serving requests", "usage limit", "--resume"} {
-		if !strings.Contains(errOut, want) {
-			t.Errorf("stderr lacks %q:\n%s", want, errOut)
+	for _, w := range []string{"Run stopped early: claude-code cannot serve further requests", want, "--resume"} {
+		if !strings.Contains(errOut, w) {
+			t.Errorf("stderr lacks %q:\n%s", w, errOut)
 		}
 	}
 
@@ -95,7 +107,7 @@ func TestReviewE2E_ClaudeCodeUsageLimitStopsTheRun(t *testing.T) {
 		}
 	}
 	if limited != 1 {
-		t.Fatalf("the run must stop after the first limit error, got %d limited call(s): %v", limited, calls)
+		t.Fatalf("the run must stop after the first account error, got %d failed call(s): %v", limited, calls)
 	}
 
 	var got jsonOutput

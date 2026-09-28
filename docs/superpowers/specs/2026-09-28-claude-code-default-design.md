@@ -113,7 +113,9 @@ run. The review pipeline, on seeing it, cancels the remaining groups, keeps
 the results that were already produced, prints one message naming the
 provider and the limit, and exits with the existing partial-results code 3
 and the `ocr review --resume <id>` hint. Groups already in flight finish or
-fail on their own.
+fail on their own. A missing login and a CLI too old for the provider's
+flags fail every later request the same way, so they are fatal for the run
+too (added after review).
 
 The broad "rate limit" match stays as a limit error in this version; the
 retry-once wrapper still skips it. Narrowing it to distinguish transient API
