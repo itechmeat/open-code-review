@@ -41,7 +41,8 @@ Success criteria:
   `OCR_LLM_*`, `ANTHROPIC_*` env, shell rc). The Claude Code default is
   appended after them, never inserted before.
 - No preflight of the Claude login type (subscription versus Console
-  account) and no parsing of limit reset times. Both are noted as follow-ups.
+  account). This stays a follow-up. Parsing the limit reset time shipped in
+  the follow-up change described under "Follow-ups" below.
 - No change to `stripModelSuffix` (`[1m]` handling) and no new TUI screens.
 
 ## Design
@@ -117,9 +118,8 @@ fail on their own. A missing login and a CLI too old for the provider's
 flags fail every later request the same way, so they are fatal for the run
 too (added after review).
 
-The broad "rate limit" match stays as a limit error in this version; the
-retry-once wrapper still skips it. Narrowing it to distinguish transient API
-overload from the subscription window is a follow-up.
+The broad "rate limit" match stayed a limit error in this version; the
+follow-up below narrowed it.
 
 `plugins/open-code-review/agents/ocr-reviewer.md` drops the instruction to
 create a `providers.claude-code` entry; it is no longer needed.
@@ -158,6 +158,34 @@ English first and then in each locale:
 - Limit handling: a fake `claude` script that prints a usage-limit error makes
   the run stop after the first failure, publish partial results and exit 3.
 - Coverage stays at or above 90 %; `ClaudeCodeBinary` gets direct tests.
+
+## Follow-ups (shipped)
+
+A second change on top of this design, kept in the same fork:
+
+- Only the plan's windows are run-fatal: "usage limit", "hit your limit" and
+  "session limit" (for example `You've hit your session limit · resets 5pm
+  (Europe/Belgrade)`). The error detail is reduced to the reset time when the
+  CLI names one (`resets 5pm (Europe/Belgrade)`, or the `|<unix seconds>`
+  suffix of older releases), so `[ocr] Run stopped early` says when to resume.
+- A transient throttle ("rate limit", `429`, `529`, "overloaded") is a
+  separate, non-fatal `ErrClaudeCodeRateLimited`. The client retries it up to
+  three times with the jittered 2/4/8 s backoff of `rateLimitDelay`; a
+  throttled `--resume` is retried as a resume instead of falling back to a
+  fresh session that would resend the whole history into the same throttle.
+- `ocr scan` stops on a run-fatal error too, through the same `llm.RunStop`
+  the review agent uses: no further files or batches are dispatched, the
+  per-batch dedup and the project summary are skipped, finished files keep
+  their checkpoints, and stderr shows the same `Run stopped early` line with
+  an `ocr scan --resume <id>` hint. Scan keeps its exit-code convention: `0`
+  when at least one file was scanned (partial coverage is reported through
+  warnings, here `run_stopped`, exactly as for single failed files) and `1`
+  when nothing was scanned.
+- The transcript sent to `claude -p` escapes `<message`, `</message`,
+  `<tool_call` and `</tool_call` inside message text (as `&lt;...`) and inside
+  tool-call arguments (as the JSON escape `\u003c`), so a diff or a file that
+  contains those tags cannot forge a message boundary or a tool call. The
+  tool protocol in the system prompt says how such text appears.
 
 ## Upstream footprint
 
