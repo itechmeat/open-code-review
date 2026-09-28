@@ -76,15 +76,40 @@ func NewClaudeCodeClient(cfg ClientConfig) *ClaudeCodeClient {
 	return &ClaudeCodeClient{model: cfg.Model, effort: os.Getenv(envClaudeCodeEffort), timeout: timeout}
 }
 
-// CompletionsWithCtx implements LLMClient. An error the CLI reports without a
-// known cause (an overloaded API, a one-off safeguard refusal) is retried once;
-// a lost stage otherwise silently skips work such as the review filter.
+// claudeCodeRateLimitRetries bounds the retries of a throttled request; with
+// rateLimitDelay's 2/4/8 s steps the request gives up after about 14 s.
+const claudeCodeRateLimitRetries = 3
+
+// CompletionsWithCtx implements LLMClient. A throttled request is retried with
+// jittered backoff; an error the CLI reports without a known cause (a one-off
+// safeguard refusal) is retried once, since a lost stage otherwise silently
+// skips work such as the review filter.
 func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
-	resp, err := c.complete(ctx, req)
-	if err != nil && ctx.Err() == nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, ErrFatalForRun) {
-		resp, err = c.complete(ctx, req)
+	throttled, retriedOther := 0, false
+	for {
+		resp, err := c.complete(ctx, req)
+		if err == nil || ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, ErrFatalForRun) {
+			return resp, err
+		}
+		if errors.Is(err, ErrClaudeCodeRateLimited) {
+			if throttled >= claudeCodeRateLimitRetries {
+				return nil, err
+			}
+			timer := time.NewTimer(rateLimitDelay(throttled))
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return nil, fmt.Errorf("claude-code: %w while waiting out: %v", ctx.Err(), err)
+			case <-timer.C:
+			}
+			throttled++
+			continue
+		}
+		if retriedOther {
+			return nil, err
+		}
+		retriedOther = true
 	}
-	return resp, err
 }
 
 func (c *ClaudeCodeClient) complete(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
