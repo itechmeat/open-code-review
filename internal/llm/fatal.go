@@ -3,7 +3,12 @@
 
 package llm
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+)
 
 // ErrFatalForRun matches, through errors.Is, a provider error after which no
 // further request of the same run can succeed, such as an exhausted
@@ -41,4 +46,48 @@ func FatalCause(err error) error {
 		return f
 	}
 	return err
+}
+
+// RunStop records the first provider error that makes every further request
+// of a run fail, so dispatch loops can stop on it. It is safe for concurrent
+// use; the zero value is ready.
+type RunStop struct {
+	mu  sync.Mutex
+	err error
+}
+
+// Record stores err when it is fatal for the run. It reports whether err is
+// fatal and whether it is the first fatal error, the one to announce.
+func (s *RunStop) Record(err error) (fatal, first bool) {
+	if err == nil || !errors.Is(err, ErrFatalForRun) {
+		return false, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return true, false
+	}
+	s.err = err
+	return true, true
+}
+
+// Err returns the recorded fatal error, or nil.
+func (s *RunStop) Err() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.err
+}
+
+// RunStopMessage describes why dispatch stopped early, or returns "" when
+// err is nil. provider names the provider; empty means an unnamed one.
+func RunStopMessage(provider string, err error) string {
+	if err == nil {
+		return ""
+	}
+	if provider == "" {
+		provider = "the LLM provider"
+	}
+	// Provider sentinels already start with the provider name.
+	cause := strings.TrimPrefix(FatalCause(err).Error(), provider+": ")
+	return fmt.Sprintf("%s cannot serve further requests, so the remaining files were not dispatched: %s", provider, cause)
 }

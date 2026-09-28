@@ -187,7 +187,7 @@ type Agent struct {
 	runner          *reviewtask.Runner
 	resumeInfo      *ResumeInfo
 	budgetExceeded  atomic.Bool // set when a token/tool-call budget gate stopped dispatch
-	stop            runStop     // set when a provider error stopped dispatch for the whole run
+	stop            llm.RunStop // set when a provider error stopped dispatch for the whole run
 
 	fileGroups []FileGroup // semantic grouping result, stored for JSON output
 
