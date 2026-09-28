@@ -115,11 +115,12 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 			return ResolvedEndpoint{}, fmt.Errorf("resolve OCR config file: %w", err)
 		}
 		if !ok {
-			section := "custom_providers"
-			if _, isPreset := LookupProvider(opts.Provider); isPreset {
-				section = "providers"
+			// No config file: resolve the provider as if the file held nothing
+			// but the selection, so a preset that needs no entry still works.
+			ep, _, err = tryProviderConfig(configFile{Provider: opts.Provider}, opts.Model)
+			if err != nil {
+				return ResolvedEndpoint{}, fmt.Errorf("resolve provider %q (no config file): %w", opts.Provider, err)
 			}
-			return ResolvedEndpoint{}, fmt.Errorf("resolve OCR config file: provider %q is not configured in %s section because the config file does not exist", opts.Provider, section)
 		}
 		return finalizeResolvedEndpoint("OCR config file", ep, env), nil
 	}
@@ -148,6 +149,13 @@ func ResolveEndpointWithOptions(configPath string, opts ResolveOptions) (Resolve
 	}
 
 	return ResolvedEndpoint{}, fmt.Errorf("no valid LLM endpoint configured; one of OCR_LLM_URL/OCR_LLM_TOKEN/OCR_LLM_MODEL, ~/.opencodereview/config.json, or ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL must be set")
+}
+
+// presetUsableWithoutEntry reports whether a preset can resolve without a
+// providers.<name> entry: its credentials come from the ambient chain, or its
+// API key variable is set.
+func presetUsableWithoutEntry(p Provider) bool {
+	return p.AmbientAuth || (p.EnvVar != "" && strings.TrimSpace(os.Getenv(p.EnvVar)) != "")
 }
 
 // envOverrides holds the global OCR_LLM_* overrides that apply to whichever
@@ -405,12 +413,17 @@ func tryProviderConfig(cfg configFile, modelOverride string) (ResolvedEndpoint, 
 	} else {
 		entry, ok = cfg.CustomProviders[cfg.Provider]
 	}
-	if !ok {
-		section := "providers"
+	// A preset that needs nothing beyond what the environment already supplies
+	// works without an entry; everything below then runs on the preset alone.
+	if !ok && !(isPreset && presetUsableWithoutEntry(preset)) {
 		if !isPreset {
-			section = "custom_providers"
+			return ResolvedEndpoint{}, false, fmt.Errorf("provider %q is set but not configured in custom_providers section", cfg.Provider)
 		}
-		return ResolvedEndpoint{}, false, fmt.Errorf("provider %q is set but not configured in %s section", cfg.Provider, section)
+		hint := ""
+		if preset.EnvVar != "" {
+			hint = fmt.Sprintf(" and %s is not set", preset.EnvVar)
+		}
+		return ResolvedEndpoint{}, false, fmt.Errorf("provider %q is set but not configured in providers section%s", cfg.Provider, hint)
 	}
 
 	// Pick the credential source here, but run api_key_cmd only just before
@@ -516,6 +529,9 @@ func tryProviderConfig(cfg configFile, modelOverride string) (ResolvedEndpoint, 
 	}
 	if entry.Model != "" {
 		model = entry.Model
+	}
+	if model == "" && isPreset {
+		model = preset.DefaultModel
 	}
 
 	// Build available model list for validation.
