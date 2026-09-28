@@ -6,6 +6,7 @@ package llm
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -37,5 +38,33 @@ func TestFatalCauseDropsOuterWrapping(t *testing.T) {
 	plain := errors.New("boom")
 	if FatalCause(plain) != plain {
 		t.Error("a non-fatal error is returned unchanged")
+	}
+}
+
+func TestRunStopKeepsTheFirstFatalError(t *testing.T) {
+	var s RunStop
+	if fatal, first := s.Record(errors.New("boom")); fatal || first || s.Err() != nil {
+		t.Fatal("a non-fatal error must not stop the run")
+	}
+	limit := fmt.Errorf("group g1: %w", classifyClaudeCodeFailure("You've hit your session limit · resets 5pm (Europe/Belgrade)"))
+	if fatal, first := s.Record(limit); !fatal || !first {
+		t.Fatalf("Record(limit) = %v, %v, want the first fatal error", fatal, first)
+	}
+	if fatal, first := s.Record(ErrClaudeCodeNotLoggedIn); !fatal || first {
+		t.Fatalf("Record(login) = %v, %v, want a fatal but not first error", fatal, first)
+	}
+	if s.Err() != limit {
+		t.Fatalf("Err() = %v, want the first fatal error", s.Err())
+	}
+	want := "claude-code cannot serve further requests, so the remaining files were not dispatched: " +
+		"Claude usage limit reached (wait for the limit to reset or lower --concurrency): resets 5pm (Europe/Belgrade)"
+	if got := RunStopMessage("claude-code", s.Err()); got != want {
+		t.Errorf("RunStopMessage() = %q, want %q", got, want)
+	}
+	if got := RunStopMessage("", s.Err()); !strings.HasPrefix(got, "the LLM provider cannot serve") {
+		t.Errorf("RunStopMessage() without a provider = %q", got)
+	}
+	if RunStopMessage("claude-code", nil) != "" {
+		t.Error("no stop, no message")
 	}
 }
