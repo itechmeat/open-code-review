@@ -190,11 +190,18 @@ Model:  opus
 `provider:claude-code` when the provider was selected by `--provider` or the
 config file.
 
-When Claude Code reports a subscription usage limit, `ocr review` stops
-dispatching the remaining groups, keeps the results already produced, prints
-`[ocr] Run stopped early: ...` and exits `3` with an `ocr review --resume <id>`
-hint (exit `1` when nothing was reviewed yet). Resume after the limit window
-resets, or lower `--concurrency`. `ocr scan` does not print this message yet.
+When Claude Code reports that the plan's usage or session limit is reached
+(`Claude AI usage limit reached`, `You've hit your limit`, `You've hit your
+session limit · resets 5pm (Europe/Belgrade)`), `ocr review` and `ocr scan`
+stop dispatching the remaining files, keep the results already produced and
+print `[ocr] Run stopped early: ...`, ending with the reset time when Claude
+Code names one. `ocr review` then exits `3` with an `ocr review --resume <id>`
+hint; `ocr scan` exits `0`, as it does when single files fail, with a
+`run_stopped` warning and an `ocr scan --resume <id>` hint. Both exit `1` when
+nothing was reviewed yet. Resume after the limit resets, or lower
+`--concurrency`. A transient throttle (HTTP `429`, a `rate limit` message or
+an overloaded API) is not a limit: the request is retried up to three times
+with a 2/4/8 s backoff before that one file fails.
 A missing login or a `claude` CLI too old for this provider stops the run the
 same way: run `claude` and use `/login`, or update Claude Code, then resume.
 

@@ -186,12 +186,18 @@ Model:  opus
 `OCR_CLAUDE_CODE_BIN` になり、provider が `--provider` または設定ファイルで
 選ばれた場合は `provider:claude-code` になります。
 
-Claude Code がサブスクリプションの使用量上限を報告すると、`ocr review` は残りの
-グループのディスパッチを止め、すでに得られた結果を保持し、
-`[ocr] Run stopped early: ...` を出力して、`ocr review --resume <id>` のヒントとともに
-`3` で終了します（まだ何もレビューされていなければ `1` で終了）。上限のウィンドウが
-リセットされてから再開するか、`--concurrency` を下げてください。`ocr scan` はまだ
-このメッセージを出力しません。
+Claude Code がプランの使用量上限またはセッション上限に達したと報告すると
+（`Claude AI usage limit reached`、`You've hit your limit`、
+`You've hit your session limit · resets 5pm (Europe/Belgrade)`）、`ocr review` と
+`ocr scan` は残りのファイルのディスパッチを止め、すでに得られた結果を保持し、
+`[ocr] Run stopped early: ...` を出力します。Claude Code がリセット時刻を示した場合は
+メッセージの末尾に含まれます。その後 `ocr review` は `ocr review --resume <id>` の
+ヒントとともに `3` で終了し、`ocr scan` は個々のファイルが失敗したときと同じく
+`run_stopped` 警告と `ocr scan --resume <id>` のヒントを出して `0` で終了します。
+まだ何もレビューされていなければ、どちらも `1` で終了します。上限がリセットされてから
+再開するか、`--concurrency` を下げてください。一時的なスロットリング（HTTP `429`、
+`rate limit` メッセージ、API の過負荷）は上限ではありません。リクエストは 2/4/8 秒の
+バックオフで最大 3 回再試行され、それでも失敗した場合はそのファイルだけが失敗します。
 `claude` がログインしていない場合や、このプロバイダーには古すぎる場合も、同じように
 実行が止まります。`claude` を起動して `/login` するか Claude Code を更新してから再開してください。
 
