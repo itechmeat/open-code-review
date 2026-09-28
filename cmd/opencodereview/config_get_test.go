@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +36,7 @@ func writeConfigGetFixture(t *testing.T) string {
 func configGet(t *testing.T, path, key string) (string, error) {
 	t.Helper()
 	var buf bytes.Buffer
-	err := runConfigGet(&buf, path, key)
+	err := runConfigGet(&buf, io.Discard, path, key)
 	return strings.TrimSpace(buf.String()), err
 }
 
@@ -108,6 +109,7 @@ func TestConfigGetErrors(t *testing.T) {
 	if _, err := configGet(t, path, "provider.name"); err == nil {
 		t.Fatal("descending into a string must fail")
 	}
+	t.Setenv("OCR_CLAUDE_CODE_BIN", filepath.Join(t.TempDir(), "no-claude"))
 	if _, err := configGet(t, filepath.Join(t.TempDir(), "missing.json"), "provider"); err == nil || !strings.Contains(err.Error(), "no config file") {
 		t.Fatalf("missing file: err = %v", err)
 	}
@@ -123,4 +125,51 @@ func TestIsSecretConfigName(t *testing.T) {
 			t.Errorf("isSecretConfigName(%q) = %v, want %v", name, got, want)
 		}
 	}
+}
+
+func TestConfigGetProviderReportsClaudeCodeFallback(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "claude")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OCR_CLAUDE_CODE_BIN", bin)
+
+	for name, path := range map[string]string{
+		"no config file":        filepath.Join(t.TempDir(), "config.json"),
+		"file without provider": writeRawConfigFile(t, `{"max_tokens": 1000}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out, errOut bytes.Buffer
+			if err := runConfigGet(&out, &errOut, path, "provider"); err != nil {
+				t.Fatalf("get provider: %v", err)
+			}
+			if got := strings.TrimSpace(out.String()); got != "claude-code" {
+				t.Fatalf("stdout = %q, want claude-code", got)
+			}
+			if !strings.Contains(errOut.String(), "OCR_CLAUDE_CODE_BIN") {
+				t.Fatalf("stderr does not name the source: %q", errOut.String())
+			}
+		})
+	}
+
+	t.Run("configured provider wins", func(t *testing.T) {
+		if got, err := configGet(t, writeConfigGetFixture(t), "provider"); err != nil || got != "z-ai-coding" {
+			t.Fatalf("get provider = %q, %v", got, err)
+		}
+	})
+	t.Run("no claude and no file", func(t *testing.T) {
+		t.Setenv("OCR_CLAUDE_CODE_BIN", filepath.Join(t.TempDir(), "missing"))
+		if _, err := configGet(t, filepath.Join(t.TempDir(), "config.json"), "provider"); err == nil || !strings.Contains(err.Error(), "no config file") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
+func writeRawConfigFile(t *testing.T, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

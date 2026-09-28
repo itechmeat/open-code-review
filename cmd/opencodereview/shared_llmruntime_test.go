@@ -78,6 +78,8 @@ func TestLoadLLMRuntime_UnresolvableEndpoint(t *testing.T) {
 	t.Setenv("ANTHROPIC_BASE_URL", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 	t.Setenv("ANTHROPIC_MODEL", "")
+	// Without this a developer's installed claude CLI would resolve.
+	t.Setenv("OCR_CLAUDE_CODE_BIN", filepath.Join(t.TempDir(), "no-claude"))
 
 	tpl := loadTestTemplate(t)
 	_, err := loadLLMRuntime(tpl, "", llm.ResolveOptions{})
