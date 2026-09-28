@@ -36,7 +36,7 @@ Recover from these errors once, then report if they persist:
 |------------|--------|
 | `not logged in` | stop; tell the caller to run `claude` and `/login` |
 | `too old for this provider` | stop; tell the caller to update Claude Code |
-| `usage limit` / `Run stopped early` | ocr already stopped the run (exit 3, or 1 when nothing was reviewed); report the limit, the partial findings and the `--resume` session ID; do not retry |
+| `usage limit` / `session limit` / `Run stopped early` | ocr already stopped the run (review exits 3, scan exits 0 with a `run_stopped` warning, either exits 1 when nothing was reviewed); report the limit and its reset time, the partial findings and the `--resume` session ID; do not retry |
 
 ## 2. Verify
 
