@@ -81,9 +81,7 @@ func NewClaudeCodeClient(cfg ClientConfig) *ClaudeCodeClient {
 // a lost stage otherwise silently skips work such as the review filter.
 func (c *ClaudeCodeClient) CompletionsWithCtx(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
 	resp, err := c.complete(ctx, req)
-	if err != nil && ctx.Err() == nil && !errors.Is(err, context.DeadlineExceeded) &&
-		!errors.Is(err, ErrClaudeCodeNotLoggedIn) && !errors.Is(err, ErrClaudeCodeUsageLimit) &&
-		!errors.Is(err, ErrClaudeCodeOutdated) {
+	if err != nil && ctx.Err() == nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, ErrFatalForRun) {
 		resp, err = c.complete(ctx, req)
 	}
 	return resp, err
@@ -162,7 +160,12 @@ func (c *ClaudeCodeClient) run(ctx context.Context, bin, dir string, args []stri
 		if detail == "" {
 			detail = stdout.String()
 		}
-		return nil, fmt.Errorf("%w (%s: %v)", classifyClaudeCodeFailure(detail), bin, runErr)
+		cause := classifyClaudeCodeFailure(detail)
+		if errors.Is(cause, ErrFatalForRun) {
+			// The cause already says what to do; the exit status adds nothing.
+			return nil, cause
+		}
+		return nil, fmt.Errorf("%w (%s: %v)", cause, bin, runErr)
 	}
 }
 

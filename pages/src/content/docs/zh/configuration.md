@@ -173,6 +173,8 @@ Model:  opus
 结果，打印 `[ocr] Run stopped early: ...`，并以 `3` 退出，附带
 `ocr review --resume <id>` 提示（尚未评审任何文件时以 `1` 退出）。请在额度窗口重置后
 续跑，或降低 `--concurrency`。`ocr scan` 目前还不会打印这条消息。
+`claude` 未登录或版本过旧、无法支持该 provider 时，运行也会以同样方式停止：运行
+`claude` 并执行 `/login`，或更新 Claude Code，然后续跑。
 
 ### provider 解析顺序 {#provider-resolution-order}
 
