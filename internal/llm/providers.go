@@ -41,6 +41,23 @@ type Provider struct {
 // and commit both generated catalogs. See the root AGENTS.md for paths and verification.
 var registry = []Provider{
 	{
+		// Claude Code signs in on its own (subscription or whatever `claude`
+		// is logged in with), so the preset carries no URL and no key.
+		Name:        "claude-code",
+		DisplayName: "Claude Code CLI (Claude subscription)",
+		Protocol:    ProtocolClaudeCode,
+		AmbientAuth: true,
+		Models: []string{
+			"sonnet",
+			"opus",
+			"haiku",
+			"fable",
+			"claude-sonnet-5",
+			"claude-opus-5-5",
+			"claude-haiku-4-5",
+		},
+	},
+	{
 		Name:        "anthropic",
 		DisplayName: "Anthropic Claude API",
 		Protocol:    ProtocolAnthropic,
