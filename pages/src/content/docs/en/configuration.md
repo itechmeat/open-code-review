@@ -205,7 +205,10 @@ endpoint:
 
 The config file always wins. A config file that names a provider keeps that
 provider's errors, even when it is misconfigured, and a half-filled `llm` block
-is reported as an error; neither falls back to Claude Code.
+is reported as an error; neither falls back to Claude Code. The same holds for
+`OCR_LLM_URL` / `OCR_LLM_TOKEN` or `ANTHROPIC_BASE_URL` /
+`ANTHROPIC_AUTH_TOKEN` set without the rest of their endpoint: the error names
+them instead of reviewing on the Claude login.
 `ocr config get provider` prints `claude-code` when no provider is set and
 explains the source on stderr.
 
