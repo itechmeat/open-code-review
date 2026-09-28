@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/alibaba/open-code-review/internal/config/template"
 	"github.com/alibaba/open-code-review/internal/llm"
@@ -218,5 +219,44 @@ func TestStopRunOnIgnoresOrdinaryErrors(t *testing.T) {
 	}
 	if a.StoppedBy() != first {
 		t.Fatal("the first fatal error must be kept")
+	}
+}
+
+// inFlightClient holds the first request until the run has been stopped by the
+// second, which fails with a usage limit; every later request would fail too.
+type inFlightClient struct {
+	agent *Agent
+	calls int64 // atomic
+}
+
+func (c *inFlightClient) CompletionsWithCtx(ctx context.Context, _ llm.ChatRequest) (*llm.ChatResponse, error) {
+	if atomic.AddInt64(&c.calls, 1) > 1 {
+		return nil, fmt.Errorf("LLM completion error: %w", llm.ErrClaudeCodeUsageLimit)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for c.agent.StoppedBy() == nil {
+		if time.Now().After(deadline) || ctx.Err() != nil {
+			return nil, errors.New("the run was never stopped")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return agentTaskDoneResponse(), nil
+}
+
+func TestDispatchStopLetsInFlightGroupsFinish(t *testing.T) {
+	client := &inFlightClient{}
+	a := newRunStopAgent(t, client, perFileTemplate(), 4, "claude-code")
+	client.agent = a
+	a.args.MaxConcurrency = 2
+
+	if _, err := a.dispatchSubtasks(context.Background()); err != nil {
+		t.Fatalf("a run with a reviewed file must not fail: %v", err)
+	}
+	if calls := atomic.LoadInt64(&client.calls); calls != 2 {
+		t.Fatalf("LLM calls = %d, want 2: nothing may be dispatched after the stop", calls)
+	}
+	m := finishRunStop(t, a)
+	if len(m.Coverage.Completed) != 1 || len(m.Coverage.Failed) != 3 {
+		t.Fatalf("completed=%d failed=%d, want the in-flight group completed and 3 failed", len(m.Coverage.Completed), len(m.Coverage.Failed))
 	}
 }
