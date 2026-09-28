@@ -11,9 +11,11 @@ description: >
 license: Apache-2.0
 compatibility: >
   Requires the `ocr` CLI installed (via `npm install -g
-  @alibaba-group/open-code-review` or GitHub release binary). Requires a
-  configured supported LLM provider before first run (protocols: Anthropic,
-  OpenAI Chat Completions, OpenAI Responses, AWS Bedrock).
+  @alibaba-group/open-code-review` or GitHub release binary). With nothing
+  configured it reviews through the Claude Code CLI (`claude`, logged in) on
+  the user's Claude subscription; otherwise it needs a configured supported
+  LLM provider (protocols: Anthropic, OpenAI Chat Completions, OpenAI
+  Responses, AWS Bedrock, Claude Code CLI).
 metadata:
   author: alibaba
   homepage: https://github.com/alibaba/open-code-review
@@ -71,7 +73,7 @@ Omit `--analysis` for workspace reviews, `--preview`, `--resume`, or `--format s
 - Always use `--audience agent` to suppress progress UI and emit only the final summary
 - **Prevent output truncation**: For large reviews or restricted tool environments, pass `--output /tmp/ocr_out.txt` and inspect the file in full via a file reading tool instead of piping stdout through `tail` or `head`, which drops earlier review comments.
 
-**On failure:** If `ocr review` exits `1` (e.g. an LLM connection error), do not retry blindly — consult the Troubleshooting section below for the matching fix before re-running. Exit `3` means a partial review: the printed findings are valid, but some files failed (often provider rate limits); report the findings and review the rest with `ocr review --resume <id>` and the same target.
+**On failure:** If `ocr review` exits `1` (e.g. an LLM connection error), do not retry blindly — consult the Troubleshooting section below for the matching fix before re-running. Exit `3` means a partial review: the printed findings are valid, but some files failed (often provider rate limits); report the findings and review the rest with `ocr review --resume <id>` and the same target. When stderr shows `[ocr] Run stopped early: ...` (for example a `claude-code` subscription usage limit), OCR stopped dispatching on purpose: report the partial findings, the limit and the session ID, and do not resume until the user says the limit has reset. The same stop exits `1` when no file was reviewed.
 
 ### Step 3: Report
 
@@ -197,6 +199,7 @@ Beyond the common flags above, `ocr review` exposes a few groups of controls. Ru
 **Model**
 
 - `--provider <name>` / `--model <name>` — override the configured provider/model for this run only (for example, to recheck a diff with a different model; the user names the model, `ocr llm providers` lists the built-ins).
+- Choosing the provider: without flags, OCR uses the config file, then `OCR_LLM_*` / `ANTHROPIC_*` variables, and last the Claude Code CLI on `PATH` (`claude-code`, model `opus`, on the user's Claude subscription). Pass `--provider`/`--model` only when the user asks for another provider or model (`--provider claude-code --model sonnet` works without a config entry); `ocr config set provider <name>` changes the default and is the user's decision, not the agent's.
 
 **Budget**
 
@@ -207,7 +210,7 @@ Beyond the common flags above, `ocr review` exposes a few groups of controls. Ru
 
 ## Gotchas
 
-- **LLM must be configured first** — `ocr review` will fail loudly if no LLM is reachable. See the Troubleshooting section below if this happens.
+- **An LLM must be reachable** — with no provider configured, OCR falls back to the Claude Code CLI (`claude`) if it is installed and logged in; otherwise `ocr review` fails loudly. See the Troubleshooting section below if this happens.
 - **Working directory matters** — `ocr review` operates on the Git repo at the current directory. Use `--repo /path/to/repo` to run from elsewhere.
 - **Untracked files are reviewed in workspace mode** — running bare `ocr review` includes staged, unstaged, *and* untracked changes. Stage selectively if you want narrower scope.
 - **Large diffs may hit token limits** — `MAX_TOKENS` sets the prompt budget (`200000` in the review template; `ocr scan` uses `58888`); conversation context is compressed to stay within this prompt budget. Model output is capped separately by `MAX_COMPLETION_TOKENS` (`16384`). A file whose diff alone exceeds ~80% of `MAX_TOKENS` is skipped before the LLM is called.
@@ -231,7 +234,7 @@ Check the exit code, output, and stderr for failures or coverage gaps. The exit 
 
 **`ocr review` fails with LLM connection error**
 
-If OCR credentials are unavailable, offer `open-code-review-delegate` rather than requiring a new key. If that skill is missing, offer `npx skills add alibaba/open-code-review --skill open-code-review-delegate`. Do not switch modes without user agreement. To continue in native mode, diagnose the provider connection or configure it below; a host-agent login is not an OCR credential.
+If OCR credentials are unavailable, offer `open-code-review-delegate` rather than requiring a new key. If that skill is missing, offer `npx skills add alibaba/open-code-review --skill open-code-review-delegate`. Do not switch modes without user agreement. To continue in native mode, diagnose the provider connection or configure it below; a host-agent login is not an OCR credential. Installing Claude Code and logging in (`claude`, then `/login`) also reviews on that Claude subscription without any configuration; `not logged in` from `claude-code` means the same login step.
 
 Interactive setup (recommended):
 
