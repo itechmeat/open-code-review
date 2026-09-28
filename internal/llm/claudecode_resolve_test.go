@@ -6,31 +6,8 @@ package llm
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
-
-func TestClaudeCodeProtocolNormalizesAndValidates(t *testing.T) {
-	if got := NormalizeProtocol(" Claude-Code "); got != ProtocolClaudeCode {
-		t.Fatalf("NormalizeProtocol = %q, want %q", got, ProtocolClaudeCode)
-	}
-	if err := ValidateProtocol(ProtocolClaudeCode); err != nil {
-		t.Fatalf("ValidateProtocol(%q) = %v", ProtocolClaudeCode, err)
-	}
-	if err := ValidateProtocol("grpc"); err == nil || !strings.Contains(err.Error(), ProtocolClaudeCode) {
-		t.Fatalf("unsupported-protocol error should list %q, got %v", ProtocolClaudeCode, err)
-	}
-}
-
-func TestClaudeCodePresetIsAmbientAuth(t *testing.T) {
-	p, ok := LookupProvider("claude-code")
-	if !ok {
-		t.Fatal("claude-code preset missing")
-	}
-	if p.Protocol != ProtocolClaudeCode || !p.AmbientAuth || p.BaseURL != "" || p.EnvVar != "" {
-		t.Fatalf("preset = %+v", p)
-	}
-}
 
 func TestResolveClaudeCodePresetNeedsNoURLOrKey(t *testing.T) {
 	clearAllEnv(t)

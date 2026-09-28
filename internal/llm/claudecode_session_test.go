@@ -6,6 +6,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,6 +117,22 @@ func TestClaudeCodeClientFallsBackWhenResumeFails(t *testing.T) {
 	}
 	if _, ok := argValue(t, calls[2].Args, "--session-id"); !ok || !strings.Contains(calls[2].Stdin, "the full diff") {
 		t.Errorf("retry must be a fresh full session: %q", calls[2].Args)
+	}
+}
+
+func TestClaudeCodeClientDoesNotRetryAFatalResumeError(t *testing.T) {
+	dump := useFakeClaude(t, "resume-login")
+	c := NewClaudeCodeClient(ClientConfig{Model: "haiku"})
+	t.Cleanup(func() { _ = c.Close() })
+	first, second := loopRequests()
+	if _, err := c.CompletionsWithCtx(context.Background(), first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CompletionsWithCtx(context.Background(), second); !errors.Is(err, ErrClaudeCodeNotLoggedIn) {
+		t.Fatalf("err = %v, want the login error", err)
+	}
+	if calls := readAllFakeDumps(t, dump); len(calls) != 2 {
+		t.Errorf("a fatal resume error must not start a fresh session, got %d calls", len(calls))
 	}
 }
 
