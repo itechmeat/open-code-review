@@ -149,7 +149,7 @@ Model:  opus
 
 `OCR_CLAUDE_CODE_BIN`이 실행 파일을 정했다면 `Source:`는 `OCR_CLAUDE_CODE_BIN`이고, 프로바이더를 `--provider`나 설정 파일로 골랐다면 `provider:claude-code`입니다.
 
-Claude Code가 구독 사용량 한도를 보고하면 `ocr review`는 남은 그룹의 디스패치를 멈추고, 이미 나온 결과를 유지하며, `[ocr] Run stopped early: ...`를 출력한 뒤 `ocr review --resume <id>` 안내와 함께 `3`으로 종료합니다(아직 아무것도 리뷰하지 못했다면 `1`로 종료). 한도 기간이 초기화된 뒤 재개하거나 `--concurrency`를 낮추세요. `ocr scan`은 아직 이 메시지를 출력하지 않습니다.
+Claude Code가 구독 사용량 한도를 보고하면 `ocr review`는 남은 그룹의 디스패치를 멈추고, 이미 나온 결과를 유지하며, `[ocr] Run stopped early: ...`를 출력한 뒤 `ocr review --resume <id>` 안내와 함께 `3`으로 종료합니다(아직 아무것도 리뷰하지 못했다면 `1`로 종료). 한도 기간이 초기화된 뒤 재개하거나 `--concurrency`를 낮추세요. `ocr scan`은 아직 이 메시지를 출력하지 않습니다. `claude`가 로그인되어 있지 않거나 이 프로바이더에 비해 너무 오래된 경우에도 실행이 같은 방식으로 멈춥니다. `claude`를 실행해 `/login`하거나 Claude Code를 업데이트한 뒤 재개하세요.
 
 ### 프로바이더 해석 순서 {#provider-resolution-order}
 

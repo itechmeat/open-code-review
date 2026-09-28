@@ -195,6 +195,8 @@ dispatching the remaining groups, keeps the results already produced, prints
 `[ocr] Run stopped early: ...` and exits `3` with an `ocr review --resume <id>`
 hint (exit `1` when nothing was reviewed yet). Resume after the limit window
 resets, or lower `--concurrency`. `ocr scan` does not print this message yet.
+A missing login or a `claude` CLI too old for this provider stops the run the
+same way: run `claude` and use `/login`, or update Claude Code, then resume.
 
 ### Provider resolution order
 
