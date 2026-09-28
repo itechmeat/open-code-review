@@ -122,7 +122,7 @@ For other installation methods (install script, GitHub Release binary, from sour
 
 **1. Configure LLM**
 
-You must configure an LLM before reviewing code, unless you use [Delegation Mode](https://open-codereview.ai/docs/delegate).
+If the Claude Code CLI (`claude`) is installed and logged in, no setup is needed: with nothing else configured, OCR reviews through the `claude-code` provider on your Claude subscription, with the `opus` model. Otherwise configure an LLM before reviewing code, unless you use [Delegation Mode](https://open-codereview.ai/docs/delegate).
 
 ```bash
 ocr config provider          # Select a built-in provider or add a custom one
@@ -134,6 +134,8 @@ ocr config model             # Pick a model for the active provider
 The interactive UI guides you through provider selection, API key entry, and model configuration, then automatically tests connectivity.
 
 For CLI setup, environment variables, custom providers, and other advanced configuration, see [Configuration](https://open-codereview.ai/docs/configuration).
+
+`--provider` and `--model` switch the provider or model for one run (`ocr review --provider claude-code --model sonnet`); `ocr config set provider <name>` changes the default.
 
 **2. Review**
 
