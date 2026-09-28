@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/alibaba/open-code-review/internal/llm"
 )
 
 var configGetCmd = &cobra.Command{
@@ -32,7 +34,7 @@ values) are always masked.`,
 		if len(args) == 1 {
 			key = args[0]
 		}
-		return runConfigGet(cmd.OutOrStdout(), configPath, key)
+		return runConfigGet(cmd.OutOrStdout(), cmd.ErrOrStderr(), configPath, key)
 	},
 }
 
@@ -40,21 +42,34 @@ func init() {
 	configCmd.AddCommand(configGetCmd)
 }
 
-func runConfigGet(w io.Writer, configPath, key string) error {
+func runConfigGet(w, errW io.Writer, configPath, key string) error {
+	root := map[string]any{}
 	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("no config file at %s; run `ocr config provider` first", configPath)
-		}
+	missing := os.IsNotExist(err)
+	switch {
+	case missing:
+	case err != nil:
 		return fmt.Errorf("read config: %w", err)
-	}
-	var root map[string]any
-	if err := json.Unmarshal(data, &root); err != nil {
-		return fmt.Errorf("parse config %s: %w", configPath, err)
+	default:
+		if err := json.Unmarshal(data, &root); err != nil {
+			return fmt.Errorf("parse config %s: %w", configPath, err)
+		}
 	}
 
 	value, found, secret := lookupConfigValue(root, key)
-	if !found {
+	if !found || (key == "provider" && value == "") {
+		if key == "provider" {
+			if ep, ok := llm.ClaudeCodeFallback(); ok {
+				// stdout stays the bare value for scripts; the why goes to stderr.
+				fmt.Fprintf(errW, "[ocr] provider is not set in %s; the built-in default is %s (source: %s) unless OCR_LLM_*, ANTHROPIC_* or an llm block configure an endpoint\n",
+					configPath, ep.Provider, ep.Source)
+				_, err := fmt.Fprintln(w, ep.Provider)
+				return err
+			}
+		}
+		if missing {
+			return fmt.Errorf("no config file at %s; run `ocr config provider` first", configPath)
+		}
 		return fmt.Errorf("config key %q is not set", key)
 	}
 	if secret {
