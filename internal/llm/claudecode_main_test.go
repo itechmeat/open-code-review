@@ -93,6 +93,9 @@ func runFakeClaude(mode string) int {
 	case "error-login":
 		fmt.Print(`{"type":"result","is_error":true,"result":"Not logged in · Please run /login"}`)
 		return 1
+	case "error-empty":
+		fmt.Print(`{"type":"result","subtype":"error_during_execution","is_error":true,"result":""}`)
+		return 1
 	case "error-limit":
 		fmt.Print(`{"type":"result","is_error":true,"result":"Claude AI usage limit reached|1760000000"}`)
 		return 1
