@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+-fork.[0-9]+']
   workflow_dispatch:
 
 permissions:
@@ -14,9 +14,10 @@ jobs:
   # caught before a tag is cut. Manual runs stop here.
   verify-trusted-publishing:
     if: github.event_name == 'workflow_dispatch'
-    # npm trusted publishing rejects self-hosted runners, so this job and
-    # npm-publish are cloud-hosted while the rest of the workflow is not.
     runs-on: ubuntu-latest
+    # The trusted publishers are bound to this environment; dispatch the run
+    # on a fork tag, which the environment's deployment rule allows.
+    environment: npm
     timeout-minutes: 10
     container:
       image: node:24
@@ -96,7 +97,7 @@ jobs:
 
   build:
     if: github.event_name == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
       image: golang:1.26.9
@@ -146,7 +147,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write
@@ -248,9 +249,8 @@ jobs:
 
   npm-publish:
     needs: release
-    # Must stay cloud-hosted: npm refuses an OIDC exchange from a self-hosted
-    # runner. The heavy build matrix above is unaffected.
     runs-on: ubuntu-latest
+    environment: npm
     timeout-minutes: 15
     container:
       image: node:24
@@ -284,6 +284,17 @@ jobs:
           pattern: binary-*
           merge-multiple: true
 
+      # Only the bootstrap release needs a token: trusted publishing can be
+      # attached to a package only after it exists. Without the secret, npm
+      # gets its token from the OIDC exchange.
+      - name: Configure npm token
+        run: |
+          if [ -n "${NODE_AUTH_TOKEN}" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish platform packages
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -312,7 +323,7 @@ jobs:
             if [ "$already" = "$VERSION" ]; then
               echo "Skip: ${pkg_name}@${VERSION} already published"
             else
-              npm publish "$pkg_dir" --access public --provenance
+              npm publish "$pkg_dir" --access public --provenance --tag latest
               echo "Published: ${pkg_name}@${VERSION}"
             fi
           done
@@ -333,6 +344,6 @@ jobs:
           if [ "$already" = "$VERSION" ]; then
             echo "Skip: ${pkg_name}@${VERSION} already published"
           else
-            npm publish --access public --provenance
+            npm publish --access public --provenance --tag latest
             echo "Published: ${pkg_name}@${VERSION}"
           fi

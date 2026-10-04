@@ -141,13 +141,19 @@ test("manual preflight is separated from tag publishing", () => {
   assert.match(jobText("release"), /^    needs: build$/m);
   assert.match(jobText("npm-publish"), /^    needs: release$/m);
   for (const job of ["build", "release"]) {
-    assert.match(jobText(job), /^    runs-on: self-hosted$/m);
+    assert.match(jobText(job), /^    runs-on: ubuntu-latest$/m);
   }
   for (const job of ["verify-trusted-publishing", "npm-publish"]) {
     assert.match(jobText(job), /^    runs-on: ubuntu-latest$/m);
+    assert.match(jobText(job), /^    environment: npm$/m);
     assert.match(jobText(job), /^      id-token: write$/m);
   }
-  assert.doesNotMatch(WORKFLOW, /NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/);
+  // The fork's bootstrap release publishes with a token, which only the
+  // guarded "Configure npm token" step may read.
+  const tokenStep = jobText("npm-publish").match(/^      - name: Configure npm token\n(?:(?!^      - ).*\n)*/m);
+  assert.ok(tokenStep, "npm-publish has no Configure npm token step");
+  assert.match(tokenStep[0], /^          if \[ -n "\$\{NODE_AUTH_TOKEN\}" \]; then$/m);
+  assert.doesNotMatch(WORKFLOW.replace(tokenStep[0], ""), /NPM_TOKEN|NODE_AUTH_TOKEN|_authToken/);
 });
 
 test("HTTP 201 validates all seven packages without publishing", () => {
