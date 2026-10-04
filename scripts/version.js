@@ -27,7 +27,19 @@ function semverGt(a, b) {
   const aPre = aWithoutBuild.includes("-");
   const bPre = bWithoutBuild.includes("-");
   if (bPre && !aPre) return true;
-  return false;
+  if (!aPre || !bPre) return false;
+  const ia = aWithoutBuild.slice(aWithoutBuild.indexOf("-") + 1).split(".");
+  const ib = bWithoutBuild.slice(bWithoutBuild.indexOf("-") + 1).split(".");
+  for (let i = 0; i < Math.min(ia.length, ib.length); i++) {
+    if (ia[i] === ib[i]) continue;
+    const na = /^\d+$/.test(ia[i]);
+    const nb = /^\d+$/.test(ib[i]);
+    if (na && nb) return Number(ia[i]) > Number(ib[i]);
+    // Numeric identifiers have lower precedence than alphanumeric ones.
+    if (na !== nb) return nb;
+    return ia[i] > ib[i];
+  }
+  return ia.length > ib.length;
 }
 
 function shouldShowUpdateHint(hintVersion, installedVersion) {
