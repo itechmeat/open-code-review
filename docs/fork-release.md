@@ -12,7 +12,7 @@ This repository is a fork of [alibaba/open-code-review](https://github.com/aliba
 
 ## Versions and tags
 
-1. A fork release is tagged `v<upstream version>-fork.<n>`, for example `v1.12.11-fork.1`. `<upstream version>` is the upstream tag the fork is rebased onto; `<n>` starts at 1 and grows with each fork release on the same base.
+1. A fork release is tagged `v<upstream version>-fork.<n>`, for example `v1.12.11-fork.1`. `<upstream version>` is the upstream tag the fork is rebased onto; `<n>` starts at 1 and grows with each fork release on the same base. The fork never bumps the major, minor or patch number on its own: the core version always equals the upstream base, and a prerelease sorts below that base, so a fork version never runs ahead of upstream.
 2. The npm version is the tag without the leading `v`. It is a valid semver prerelease, and it sorts as expected:
    1. `1.12.11-fork.10` is newer than `1.12.11-fork.2`, because numeric identifiers compare numerically.
    2. Any `1.12.12-fork.<n>` is newer than every `1.12.11-fork.<n>`.
