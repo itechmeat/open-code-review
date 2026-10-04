@@ -18,7 +18,7 @@ Existing user commands with either name are preserved.
 Install and configure OpenCodeReview first:
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ocr config provider
 ocr config model
 ocr llm test

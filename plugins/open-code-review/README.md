@@ -7,7 +7,7 @@ adapting installation instructions written for a different agent.
 All integrations require Git 2.41 or later. Install the `ocr` CLI first:
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 Configure and test an OCR LLM before running a review, unless you plan to use
