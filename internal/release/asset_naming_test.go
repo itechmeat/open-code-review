@@ -184,7 +184,10 @@ func TestChecksumFilenameNoVersion(t *testing.T) {
 
 func TestURLPatternHTTPS(t *testing.T) {
 	pkg := loadPackageJSON(t)
-	if !strings.HasPrefix(pkg.OcrConfig.URLPattern, "https://github.com/alibaba/open-code-review/releases/download/") {
+	if !strings.HasPrefix(pkg.OcrConfig.URLPattern, "https://github.com/itechmeat/open-code-review/releases/download/") {
 		t.Errorf("urlPattern should point to GitHub releases via HTTPS, got %q", pkg.OcrConfig.URLPattern)
+	}
+	if !strings.HasPrefix(pkg.OcrConfig.ChecksumPattern, "https://github.com/itechmeat/open-code-review/releases/download/") {
+		t.Errorf("checksumPattern should point to the same GitHub releases, got %q", pkg.OcrConfig.ChecksumPattern)
 	}
 }
