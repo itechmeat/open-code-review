@@ -2,14 +2,14 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+-fork.[0-9]+']
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
       image: golang:1.26.6
@@ -59,7 +59,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write
@@ -161,12 +161,14 @@ jobs:
 
   npm-publish:
     needs: release
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    environment: npm
     timeout-minutes: 15
     container:
       image: node:24
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -214,7 +216,7 @@ jobs:
             if [ "$already" = "$VERSION" ]; then
               echo "Skip: ${pkg_name}@${VERSION} already published"
             else
-              npm publish "$pkg_dir" --access public
+              npm publish "$pkg_dir" --access public --tag latest
               echo "Published: ${pkg_name}@${VERSION}"
             fi
           done
@@ -237,7 +239,7 @@ jobs:
           if [ "$already" = "$VERSION" ]; then
             echo "Skip: ${pkg_name}@${VERSION} already published"
           else
-            npm publish --access public
+            npm publish --access public --tag latest
             echo "Published: ${pkg_name}@${VERSION}"
           fi
         env:
