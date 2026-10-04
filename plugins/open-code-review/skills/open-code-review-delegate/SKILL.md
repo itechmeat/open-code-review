@@ -9,7 +9,7 @@ description: >
 license: Apache-2.0
 compatibility: >
   Requires the `ocr` CLI installed (via `npm install -g
-  @alibaba-group/open-code-review` or GitHub release binary). Does NOT
+  @itechmeat/open-code-review` or GitHub release binary). Does NOT
   require a configured LLM endpoint — delegation mode is LLM-free on the
   OCR side.
 metadata:
@@ -190,5 +190,5 @@ other JSON fields must require a JSON-capable CLI instead: verify with
 `ocr --version` and upgrade when necessary:
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```

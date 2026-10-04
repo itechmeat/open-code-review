@@ -19,7 +19,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@alibaba-group/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@alibaba-group/open-code-review?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@itechmeat/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@itechmeat/open-code-review?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/alibaba/open-code-review/release.yml?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/alibaba/open-code-review?style=flat-square" /></a>
   <a href="https://deepwiki.com/alibaba/open-code-review"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
@@ -37,6 +37,8 @@
 <p align="center">
   English | <a href="docs/i18n/README.zh-CN.md">简体中文</a> | <a href="docs/i18n/README.ja-JP.md">日本語</a> | <a href="docs/i18n/README.ko-KR.md">한국어</a> | <a href="docs/i18n/README.ru-RU.md">Русский</a>
 </p>
+
+> **About this fork.** This is a fork of [alibaba/open-code-review](https://github.com/alibaba/open-code-review) that tracks upstream and adds a small set of changes. Install it with `npm install -g @itechmeat/open-code-review`, or with the install scripts: `curl -fsSL https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.sh | sh` on macOS and Linux, `irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 | iex` on Windows. The documentation at open-codereview.ai describes upstream. The release scheme and other details are in [docs/fork-release.md](docs/fork-release.md).
 
 ---
 
@@ -111,7 +113,7 @@ The agent's strengths are concentrated where they matter most — dynamic decisi
 #### Install
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 After installation, the `ocr` command is available globally.

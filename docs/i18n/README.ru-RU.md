@@ -19,7 +19,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@alibaba-group/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@alibaba-group/open-code-review?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@itechmeat/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@itechmeat/open-code-review?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/alibaba/open-code-review/release.yml?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/alibaba/open-code-review?style=flat-square" /></a>
   <a href="https://deepwiki.com/alibaba/open-code-review"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
@@ -37,6 +37,8 @@
 <p align="center">
   <a href="../../README.md">English</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | Русский
 </p>
+
+> **Об этом форке.** Это форк [alibaba/open-code-review](https://github.com/alibaba/open-code-review), который следует за upstream и добавляет небольшой набор изменений. Установка: `npm install -g @itechmeat/open-code-review` или скрипты установки: `curl -fsSL https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.sh | sh` на macOS и Linux, `irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 | iex` на Windows. Документация на open-codereview.ai описывает upstream. Схема релизов и другие подробности описаны в [docs/fork-release.md](../fork-release.md).
 
 ---
 
@@ -111,7 +113,7 @@ Open Code Review — это CLI-инструмент для код-ревью н
 #### Установка
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 После установки команда `ocr` доступна глобально.

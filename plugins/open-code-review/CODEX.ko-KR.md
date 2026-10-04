@@ -17,7 +17,7 @@ Codex
 `ocr` CLI가 설치되어 있어야 합니다.
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 설치 확인:
