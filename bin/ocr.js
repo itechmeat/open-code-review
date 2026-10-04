@@ -67,7 +67,7 @@ if (require.main !== module) {
 const resolved = resolveNativeBinary();
 if (!resolved) {
   console.error(
-    "[ERROR] OpenCodeReview binary not found. Run: npm install -g @alibaba-group/open-code-review"
+    "[ERROR] OpenCodeReview binary not found. Run: npm install -g @itechmeat/open-code-review"
   );
   process.exit(1);
 }
@@ -76,7 +76,7 @@ const binaryPath = resolved.path;
 const hintFile = path.join(os.homedir(), ".opencodereview", "update-available");
 try {
   const hint = JSON.parse(fs.readFileSync(hintFile, "utf8"));
-  if (hint.pkg && shouldShowUpdateHint(hint.version, packageVersion)) {
+  if (hint.pkg === require("../package.json").name && shouldShowUpdateHint(hint.version, packageVersion)) {
     console.error(
       `\x1b[33m[ocr] A new version (v${hint.version}) is available. Run to update:\x1b[0m\n` +
       `\x1b[33m  npm i -g ${hint.pkg}@${hint.version}\x1b[0m\n`
