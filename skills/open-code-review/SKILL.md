@@ -11,7 +11,7 @@ description: >
 license: Apache-2.0
 compatibility: >
   Requires the `ocr` CLI installed (via `npm install -g
-  @alibaba-group/open-code-review` or GitHub release binary). With nothing
+  @itechmeat/open-code-review` or GitHub release binary). With nothing
   configured it reviews through the Claude Code CLI (`claude`, logged in) on
   the user's Claude subscription; otherwise it needs a configured supported
   LLM provider (protocols: Anthropic, OpenAI Chat Completions, OpenAI
@@ -228,7 +228,7 @@ Check the exit code, output, and stderr for failures or coverage gaps. The exit 
 
 **CLI missing or flag not recognized**
 
-- If `ocr` is not found, install the latest CLI with `npm i -g @alibaba-group/open-code-review@latest`.
+- If `ocr` is not found, install the latest CLI with `npm i -g @itechmeat/open-code-review@latest`.
 - If OCR reports `unknown flag` for an option this skill uses, offer to upgrade with the same command and wait for approval. For a user-supplied option, check the spelling and subcommand first. Do not silently drop the flag.
 - After installation or an approved upgrade succeeds, rerun the original command once. If it still fails, report the error rather than retrying or changing the request.
 
@@ -256,5 +256,5 @@ Verify connectivity with `ocr llm test`. If credentials are needed for native mo
 ## References
 
 - Full docs: https://github.com/alibaba/open-code-review
-- NPM package: https://www.npmjs.com/package/@alibaba-group/open-code-review
+- NPM package: https://www.npmjs.com/package/@itechmeat/open-code-review
 - Issue tracker: https://github.com/alibaba/open-code-review/issues
