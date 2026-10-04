@@ -19,7 +19,7 @@ ocr review --audience agent [user-args]
 - (Optional) Provide `--background "requirement context"` to review whether the requirements are correctly implemented.
 - (Optional) Provide `--background-file ./requirements.md` to load the same context from a Markdown file (sanitised and limited to 8000 characters). Takes precedence over `--background` when both are set.
 - Capture full stdout. Set a 5-minute timeout.
-- If the `ocr` command is not found, install it by running `npm i -g @alibaba-group/open-code-review`.
+- If the `ocr` command is not found, install it by running `npm i -g @itechmeat/open-code-review`.
 
 ### Step 2: Filter and Evaluate
 
