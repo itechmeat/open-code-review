@@ -249,7 +249,7 @@ async function runOcr(args: string[], options: RunOptions): Promise<RunResult> {
 
     child.on("error", (error) => {
       const message = error.message.includes("ENOENT")
-        ? "OpenCodeReview is not installed or 'ocr' is not on PATH. Install it with: npm install -g @alibaba-group/open-code-review"
+        ? "OpenCodeReview is not installed or 'ocr' is not on PATH. Install it with: npm install -g @itechmeat/open-code-review"
         : `Failed to start OpenCodeReview: ${error.message}`
       finish(() => reject(new OcrExecutionError(message, { exitCode: null })))
     })
