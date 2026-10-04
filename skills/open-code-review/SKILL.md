@@ -11,7 +11,7 @@ description: >
 license: Apache-2.0
 compatibility: >
   Requires the `ocr` CLI installed (via `npm install -g
-  @alibaba-group/open-code-review` or GitHub release binary). With nothing
+  @itechmeat/open-code-review` or GitHub release binary). With nothing
   configured it reviews through the Claude Code CLI (`claude`, logged in) on
   the user's Claude subscription; otherwise it needs a configured supported
   LLM provider (protocols: Anthropic, OpenAI Chat Completions, OpenAI
@@ -51,8 +51,8 @@ ocr review --audience agent --background "business context here" [user-args]
 - **Timeout**: effective timeout per review group = `--timeout` × review rounds. Default `--timeout 15` with default effort `medium` (2 rounds) gives 30 minutes; `low`/`high` give 15/45 minutes.
 - **Concurrency**: default concurrency is 8 file workers; reduce with `--concurrency <n>` if rate limits are hit
 - **Preview mode**: use `--preview` or `-p` to preview which files will be reviewed without running the LLM
-- **Output file**: use `--output <path>` to write the full result to a file instead of stdout. If the command fails with `unknown flag: --output`, do not continue the review with plain stdout. Ask the user whether to upgrade (`npm i -g @alibaba-group/open-code-review@latest`) and wait for the answer before proceeding. After the user confirms and the upgrade succeeds, rerun with `--output`.
-- **Installation**: if `ocr` command is not found, install it by running `npm i -g @alibaba-group/open-code-review`
+- **Output file**: use `--output <path>` to write the full result to a file instead of stdout. If the command fails with `unknown flag: --output`, do not continue the review with plain stdout. Ask the user whether to upgrade (`npm i -g @itechmeat/open-code-review@latest`) and wait for the answer before proceeding. After the user confirms and the upgrade succeeds, rerun with `--output`.
+- **Installation**: if `ocr` command is not found, install it by running `npm i -g @itechmeat/open-code-review`
 
 **Common invocation patterns:**
 
@@ -225,12 +225,12 @@ If errors occurred, check the stderr warnings for details about which files fail
 Install the CLI:
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 **`unknown flag: --output`**
 
-The CLI is older than v1.10.0. Do not continue the review with plain stdout. Ask the user whether to upgrade (`npm i -g @alibaba-group/open-code-review@latest`) and wait for the answer before proceeding. After the user confirms and the upgrade succeeds, rerun with `--output`.
+The CLI is older than v1.10.0. Do not continue the review with plain stdout. Ask the user whether to upgrade (`npm i -g @itechmeat/open-code-review@latest`) and wait for the answer before proceeding. After the user confirms and the upgrade succeeds, rerun with `--output`.
 
 **`ocr review` fails with LLM connection error**
 
@@ -256,5 +256,5 @@ Verify connectivity with `ocr llm test`. Stop here and ask the user to provide c
 ## References
 
 - Full docs: https://github.com/alibaba/open-code-review
-- NPM package: https://www.npmjs.com/package/@alibaba-group/open-code-review
+- NPM package: https://www.npmjs.com/package/@itechmeat/open-code-review
 - Issue tracker: https://github.com/alibaba/open-code-review/issues
