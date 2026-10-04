@@ -19,7 +19,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@alibaba-group/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@alibaba-group/open-code-review?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@itechmeat/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@itechmeat/open-code-review?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/alibaba/open-code-review/release.yml?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/alibaba/open-code-review?style=flat-square" /></a>
   <a href="https://deepwiki.com/alibaba/open-code-review"><img alt="Ask DeepWiki" src="https://img.shields.io/badge/Ask-DeepWiki-blue?style=flat-square" /></a>
@@ -37,6 +37,8 @@
 <p align="center">
   <a href="../../README.md">English</a> | 简体中文 | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | <a href="README.ru-RU.md">Русский</a>
 </p>
+
+> **关于此复刻。** 这是 [alibaba/open-code-review](https://github.com/alibaba/open-code-review) 的一个复刻，持续跟踪上游并加入少量改动。安装方式：`npm install -g @itechmeat/open-code-review`，或使用安装脚本：macOS 和 Linux 上运行 `curl -fsSL https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.sh | sh`，Windows 上运行 `irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 | iex`。open-codereview.ai 上的文档描述的是上游版本。发布方案及其他细节见 [docs/fork-release.md](../fork-release.md)。
 
 ---
 
@@ -111,7 +113,7 @@ Open Code Review 的核心设计理念是将确定性工程与 Agent 结合，�
 #### 安装
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 安装后，`ocr` 命令即可全局使用。

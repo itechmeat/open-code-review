@@ -19,7 +19,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@alibaba-group/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@alibaba-group/open-code-review?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@itechmeat/open-code-review"><img alt="npm" src="https://img.shields.io/npm/v/@itechmeat/open-code-review?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/alibaba/open-code-review/release.yml?style=flat-square" /></a>
   <a href="https://github.com/alibaba/open-code-review/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/alibaba/open-code-review?style=flat-square" /></a>
   <a href="https://deepwiki.com/alibaba/open-code-review"><img alt="Ask DeepWiki" src="https://img.shields.io/badge/Ask-DeepWiki-blue?style=flat-square" /></a>
@@ -37,6 +37,8 @@
 <p align="center">
   <a href="../../README.md">English</a> | <a href="README.zh-CN.md">简体中文</a> | 日本語 | <a href="README.ko-KR.md">한국어</a> | <a href="README.ru-RU.md">Русский</a>
 </p>
+
+> **このフォークについて。** これは [alibaba/open-code-review](https://github.com/alibaba/open-code-review) のフォークで、上流を追従しつつ少数の変更を加えています。インストールは `npm install -g @itechmeat/open-code-review`、またはインストールスクリプトを使います（macOS と Linux では `curl -fsSL https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.sh | sh`、Windows では `irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 | iex`）。open-codereview.ai のドキュメントは上流版について説明しています。リリース方式などの詳細は [docs/fork-release.md](../fork-release.md) を参照してください。
 
 ---
 
@@ -111,7 +113,7 @@ Open Code Reviewのコア哲学は、決定論的エンジニアリングとエ�
 #### インストール
 
 ```bash
-npm install -g @alibaba-group/open-code-review
+npm install -g @itechmeat/open-code-review
 ```
 
 インストール後、`ocr`コマンドがグローバルに利用可能になります。

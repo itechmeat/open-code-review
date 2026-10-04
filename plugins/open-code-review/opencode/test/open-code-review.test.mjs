@@ -411,7 +411,7 @@ test("ocr_review explains how to install a missing OCR executable", async () => 
       const { hooks } = await loadPlugin(directory)
       await assert.rejects(
         hooks.tool.ocr_review.execute({}, toolContext(directory)),
-        /npm install -g @alibaba-group\/open-code-review/,
+        /npm install -g @itechmeat\/open-code-review/,
       )
     } finally {
       process.env.PATH = previousPath
