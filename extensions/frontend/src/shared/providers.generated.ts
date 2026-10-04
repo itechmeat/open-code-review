@@ -61,6 +61,23 @@ export const PROVIDER_PRESETS: OcrProviderPreset[] = [
     ]
   },
   {
+    "name": "claude-code",
+    "displayName": "Claude Code CLI (Claude subscription)",
+    "protocol": "claude-code",
+    "baseUrl": "",
+    "envVar": "",
+    "ambientAuth": true,
+    "models": [
+      "sonnet",
+      "opus",
+      "haiku",
+      "fable",
+      "claude-sonnet-5",
+      "claude-opus-5-5",
+      "claude-haiku-4-5"
+    ]
+  },
+  {
     "name": "dashscope",
     "displayName": "Alibaba DashScope API",
     "protocol": "openai",
