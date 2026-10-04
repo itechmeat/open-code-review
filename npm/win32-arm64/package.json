@@ -1,5 +1,5 @@
 {
-  "name": "@alibaba-group/ocr-win32-arm64",
+  "name": "@itechmeat/ocr-win32-arm64",
   "version": "0.0.0",
   "description": "Platform binary for open-code-review (win32 arm64)",
   "os": [
@@ -15,7 +15,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alibaba/open-code-review.git"
+    "url": "git+https://github.com/itechmeat/open-code-review.git"
   },
   "publishConfig": {
     "access": "public"

@@ -80,6 +80,11 @@ const {
   getPlatformPackageName,
 } = require("../scripts/platform");
 
+for (const name of Object.keys(require("../package.json").optionalDependencies)) {
+  const dir = name.slice(name.lastIndexOf("/ocr-") + "/ocr-".length);
+  assert.strictEqual(require(`../npm/${dir}/package.json`).name, name);
+}
+
 function createLauncherFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ocr-launcher-test-"));
   const packageName = getPlatformPackageName();
@@ -238,10 +243,22 @@ async function testSpawnFailure(fixture) {
   );
 }
 
+async function testUpdateHintPackage(fixture) {
+  const hintFile = path.join(fixture.home, ".opencodereview", "update-available");
+  fs.mkdirSync(path.dirname(hintFile), { recursive: true });
+  const target = writeTarget(fixture, "exit-0.js", "process.exit(0);\n");
+  for (const pkg of [require("../package.json").name, "@other-scope/open-code-review"]) {
+    fs.writeFileSync(hintFile, JSON.stringify({ pkg, version: "999.0.0" }));
+    const result = await runLauncher(fixture, [target]);
+    assert.strictEqual(result.output.includes(`npm i -g ${pkg}@999.0.0`), pkg !== "@other-scope/open-code-review", result.output);
+  }
+}
+
 (async () => {
   const fixture = createLauncherFixture();
   try {
     await testExitCodePropagation(fixture);
+    await testUpdateHintPackage(fixture);
     if (process.platform === "win32") {
       console.log("skipping POSIX signal relay cases on win32");
     } else {

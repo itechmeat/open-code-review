@@ -1,7 +1,7 @@
 # Install the ocr (Open Code Review) CLI from GitHub releases on Windows.
-#   irm https://open-codereview.ai/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 | iex
 # Prefer to inspect first:
-#   irm https://open-codereview.ai/install.ps1 -OutFile install.ps1
+#   irm https://raw.githubusercontent.com/itechmeat/open-code-review/main/install.ps1 -OutFile install.ps1
 #   notepad install.ps1   # review, then: .\install.ps1
 # Env: OCR_INSTALL_DIR (default $env:LOCALAPPDATA\Programs\ocr), OCR_VERSION (default latest),
 # OCR_GITHUB_MIRROR (default unset; download the binary through a mirror domain).
@@ -91,7 +91,7 @@ try {
     # Ignore if the runtime already negotiates modern TLS.
 }
 
-$Repo = 'alibaba/open-code-review'
+$Repo = 'itechmeat/open-code-review'
 $Bin = 'ocr.exe'
 $AssetPrefix = 'opencodereview'
 $DefaultInstallDir = Join-Path $env:LOCALAPPDATA 'Programs\ocr'
