@@ -16,7 +16,7 @@ This repository is a fork of [alibaba/open-code-review](https://github.com/aliba
 2. The npm version is the tag without the leading `v`. It is a valid semver prerelease, and it sorts as expected:
    1. `1.12.11-fork.10` is newer than `1.12.11-fork.2`, because numeric identifiers compare numerically.
    2. Any `1.12.12-fork.<n>` is newer than every `1.12.11-fork.<n>`.
-3. The release workflow (`.github/workflows/release.yml`) runs only for tags of the exact form `vX.Y.Z-fork.N` (filter `v[0-9]+.[0-9]+.[0-9]+-fork.[0-9]+`). Pushing an upstream tag such as `v1.12.11`, or a suffixed tag such as `v1.12.11-fork.1-rc.1`, never publishes anything.
+3. The release workflow (`.github/workflows/release.yml`) runs only for tags of the exact form `vX.Y.Z-fork.N` (filter `v[0-9]+.[0-9]+.[0-9]+-fork.[0-9]+`). A suffixed tag such as `v1.12.11-fork.1-rc.1` never publishes anything. An upstream tag such as `v1.12.11` points at an upstream commit, and GitHub runs the workflow file of that commit, which still has the upstream trigger `v*` and `runs-on: self-hosted`. The run therefore sits queued without a runner until GitHub cancels it after 24 hours; it cannot publish, but cancel it right away (step 3 of the release procedure).
 4. Every fork version is a prerelease, so the workflow publishes with `npm publish --tag latest`. npm refuses to publish a prerelease without an explicit tag. An explicit `--tag latest` also turns off npm's check against moving `latest` to a lower version, so release only in increasing version order: never tag an older base after a newer one.
 5. Consequences for users:
    1. `npm install -g @itechmeat/open-code-review` installs the version that carries the `latest` dist-tag, which is always the newest fork release.
@@ -28,7 +28,7 @@ This repository is a fork of [alibaba/open-code-review](https://github.com/aliba
 
 1. Rebase the fork onto the new upstream tag, for example `git fetch upstream --tags && git rebase v1.12.11`, resolve conflicts, and run the gates: `make check`, `make test`, `npm run test:launcher`, `npm run test:update`, `npm run test:github-actions`.
 2. Merge the result into `main` on this repository.
-3. Push exactly the upstream base tag, and no other upstream tags: `git push origin v1.12.11`. The release notes are generated from the previous tag reachable from the release commit. With the base tag present, the notes list only the fork's own commits. Without it they fall back to an older upstream tag and mix in upstream commits.
+3. Push exactly the upstream base tag, and no other upstream tags: `git push origin v1.12.11`. The release notes are generated from the previous tag reachable from the release commit. With the base tag present, the notes list only the fork's own commits. Without it they fall back to an older upstream tag and mix in upstream commits. The push queues a Release run of the upstream workflow version (see Versions and tags, item 3); cancel it: `gh run list -R itechmeat/open-code-review --workflow release.yml --json databaseId,headBranch -q '.[] | select(.headBranch == "v1.12.11") | .databaseId' | xargs -r -I{} gh run cancel {} -R itechmeat/open-code-review`.
 4. Tag the fork release on `main` and push it:
    1. `git tag -a v1.12.11-fork.1 -m v1.12.11-fork.1`
    2. `git push origin v1.12.11-fork.1`
