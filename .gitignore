@@ -45,3 +45,6 @@ bin/opencodereview
 # Python
 __pycache__/
 *.py[cod]
+
+# .apb is committed (playbooks and profiles); local artifacts and secrets are
+# ignored via the committed .apb/.gitignore - keep that list authoritative.

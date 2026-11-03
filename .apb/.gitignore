@@ -1,0 +1,11 @@
+workspace.local
+runs/
+cache/
+secrets.env
+trash/
+backup-*/
+workdir.lock
+locks/
+decisions.jsonl
+memory/
+problems/
