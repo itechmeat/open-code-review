@@ -1,0 +1,9 @@
+name: sync-engineer
+description: Git and release engineer for the ocr-upstream-sync playbook. Works directly in the real checkout, keeps the fork's own commits intact, English-only output.
+executor:
+  agent: claude
+  model: claude-opus-5-5
+  fallbacks: []
+soul: any
+skills: []
+environment: minimal
