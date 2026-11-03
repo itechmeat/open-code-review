@@ -1,0 +1,229 @@
+schema: 2
+id: ocr-upstream-sync
+name: OCR upstream sync
+description: |
+  Syncs this fork of open-code-review with alibaba/open-code-review.
+  Rebases the fork onto the newest upstream release tag, proves the fork's own
+  work (the claude-code provider) survived, runs the quality gates, then stops
+  at a human gate before anything leaves the machine. The push phase and the
+  optional fork release are separate gated phases, each with its own review.
+  Distilled from the manual sync of 2026-11-03 (v1.13.1 to v1.13.5).
+version: 1.0.0
+params:
+  - name: target_tag
+    type: text
+    label: Upstream release tag to rebase onto (empty = newest upstream release tag)
+    default: ""
+    secret: false
+defaults:
+  profile:
+    name: sync-engineer
+    scope: project
+  max_retries: null
+  timeout_seconds: null
+  on_failure: failed
+supervisor: null
+trigger:
+  when:
+    - sync this fork with alibaba/open-code-review upstream
+    - pull upstream updates into the fork and verify the claude-code work survived
+    - rebase the fork onto a new upstream release tag and run the gates
+  avoid_when:
+    - the task is an ordinary fork feature or bugfix, not an upstream sync
+    - the user asks for a release without a fresh sync (use the release procedure manually)
+  examples:
+    - Update the fork to the latest upstream release
+    - Sync from upstream, prove the claude-code provider survived, then push after my approval
+requires:
+  files:
+    - AGENTS.md
+    - docs/fork-release.md
+  commands:
+    - git
+    - gh
+    - go
+    - npm
+    - node
+effects:
+  - fs_read
+  - fs_write
+  - network
+nodes:
+  - id: start
+    type: start
+  - id: sync
+    type: agent_task
+    title: Rebase onto the upstream tag and prove the fork survived
+    expected_duration: 90m
+    success_check: { marker: SYNC-PROOF-OK }
+    prompt: |
+      You are syncing this fork of open-code-review (github.com/itechmeat/open-code-review)
+      with alibaba/open-code-review. Work in the current checkout, on main, with a clean tree.
+      Read AGENTS.md and docs/fork-release.md first and follow the upstream-first policy.
+      The remote names are fixed: origin = itechmeat fork, upstream = alibaba.
+      Scope limits: do not push, do not create or move any tag, do not trigger the release
+      workflow. The human gate after this node decides every outward step.
+      1. Preflight. git fetch upstream && git fetch origin. From an unclean tree, stop and fail
+      the node (explain, omit the marker). Compute:
+      git log --oneline main..upstream/main
+      git rev-list --count upstream/main..main
+      Confirm upstream/main sits exactly on a release tag:
+      git describe --tags upstream/main
+      git rev-list --count <tag>..upstream/main   # must be 0
+      Use {{params.target_tag}} when it is non-empty instead of the newest tag; verify the same way.
+      If upstream/main is ahead of the newest tag, stop and fail the node (no marker), naming the
+      newest tag and how far ahead upstream/main is.
+      2. Overlap analysis. base=$(git merge-base main upstream/main). The risk set is the
+      intersection of files changed by both sides under internal/llm, internal/agent and
+      cmd/opencodereview. Save the fork-side diffs into the scratch directory:
+      git diff "$base" main -- internal/llm > "$scratch/fork-llm.diff"
+      git diff "$base" main -- <risk set files> > "$scratch/fork-risk.diff"
+      Run a trial merge whose exit status reports conflicts:
+      git merge-tree --write-tree main upstream/main > /dev/null; echo "conflict check exit: $?"
+      3. Rebase. git rebase <tag>. Resolve conflicts commit by commit, never squash or reorder:
+      each fork commit must stay independently re-appliable (upstream-first policy, item 3).
+      If Go builds die with "disk quota exceeded" while the disk has room, /tmp is a small tmpfs
+      out of inodes: export TMPDIR="$scratch/go-tmp"; mkdir -p "$TMPDIR" and continue.
+      4. Prove the fork survived. Diffs of directories upstream did not touch must be
+      byte-identical:
+      git diff <tag> HEAD -- internal/llm > "$scratch/fork-llm-after.diff"
+      diff "$scratch/fork-llm.diff" "$scratch/fork-llm-after.diff" && echo identical
+      In risk files only context lines and @@ headers may shift; the + and - lines must match:
+      git diff <tag> HEAD -- <risk set files> > "$scratch/fork-risk-after.diff"
+      diff <(grep -E "^[+-]" "$scratch/fork-risk.diff" | grep -vE "^(\+\+\+ |--- )") \
+           <(grep -E "^[+-]" "$scratch/fork-risk-after.diff" | grep -vE "^(\+\+\+ |--- )") && echo identical
+      5. Generated catalogs. If the rebase touched internal/llm/providers.go:
+      go generate ./internal/llm && git diff --exit-code
+      6. Gates. Capture exit codes; a pipe to tail hides them.
+      make check
+      make test > "$scratch/make-test.log"; echo exit: $?
+      npm run --silent test:launcher
+      npm run --silent test:update
+      npm run --silent test:github-actions
+      Then the targeted suites for the claude-code surface:
+      go test -run Claude -count=1 ./internal/llm
+      go test -run "Stop|Fatal" -count=1 ./internal/agent
+      go test -count=1 ./internal/llmloop
+      7. Workflow inventory for the push node: save into the scratch the list of workflow file
+      names now under .github/workflows (names only, one per line, workflow-delta.txt).
+      8. Write "$scratch/SUMMARY.md": base tag, commit counts, risk set, proof results, each
+      gate's exit code, workflow delta, scratch path. Do not push anything.
+      9. Emit the marker line SYNC-PROOF-OK as the last line of your final report only after
+      steps 1 to 8 all passed. If any step cannot pass, explain why and omit the marker.
+      Additional run instruction:
+      {{run.instruction}}
+    profile: sync-engineer
+    max_retries: 1
+    timeout_seconds: null
+    workdir: null
+    isolation: null
+    connectors: []
+    interactive: false
+  - id: proof_review
+    type: human_review
+    title: Gate before pushing to the public fork
+    options: [approve, reject]
+    prompt: "Sync finished. Read the SUMMARY.md in the scratch (path is in the sync node report), then decide. Approve means: push main (force-with-lease), push exactly the upstream base tag, cancel the queued release run, disable newly added upstream workflows. Reject keeps everything local."
+  - id: push_node
+    type: agent_task
+    title: Push main, the upstream base tag, cancel the queued run, disable new workflows
+    effects: [irreversible]
+    expected_duration: 15m
+    success_check: { marker: PUSH-DONE }
+    prompt: |
+      The sync passed the human gate. Read the scratch path and the base tag from the sync
+      node report above. Execute the push phase:
+      git push --force-with-lease origin main
+      git push origin <tag>
+      The tag push queues a Release run of the upstream workflow version; it wants a
+      self-hosted runner nobody has and sits queued for 24 hours. Cancel it:
+      gh run list -R itechmeat/open-code-review --workflow release.yml --json databaseId,headBranch -q ".[] | select(.headBranch == \"<tag>\") | .databaseId" | xargs -r -I{} gh run cancel {} -R itechmeat/open-code-review
+      Compare ls .github/workflows with the saved workflow-delta.txt and disable every newly
+      added workflow except Release:
+      gh workflow disable <name>.yml -R itechmeat/open-code-review
+      Append the results (push SHAs, cancelled run id, disabled workflows) to SUMMARY.md and emit PUSH-DONE.
+    profile: sync-engineer
+    max_retries: 1
+    timeout_seconds: null
+    workdir: null
+    isolation: null
+    connectors: []
+    interactive: false
+  - id: release_decision
+    type: human_review
+    title: Decide whether to cut the fork release now
+    options: [release, skip]
+    prompt: "Everything is pushed and the remote is in sync. Cutting v<upstream version>-fork.1 now publishes seven npm packages and a GitHub release. Skip leaves publishing for later, by the release procedure in docs/fork-release.md."
+  - id: release_node
+    type: agent_task
+    title: Tag the fork release, watch the workflow, verify the result
+    effects: [irreversible]
+    expected_duration: 30m
+    success_check: { marker: RELEASE-VERIFIED }
+    prompt: |
+      The owner chose to release. Read the base tag from the sync report. Check existing tags
+      first: if v<base>-fork.N already exists on origin, use the next N, otherwise N = 1.
+      git tag -a v<base>-fork.N -m v<base>-fork.N
+      git push origin v<base>-fork.N
+      Watch the Release workflow run to completion and verify:
+      gh run watch <run id> --exit-status
+      npm view @itechmeat/open-code-review dist-tags
+      npm view @itechmeat/open-code-review@<version> optionalDependencies
+      gh release view v<base>-fork.N -R itechmeat/open-code-review --json assets -q ".assets[].name"
+      Expect latest = the new version, six @itechmeat/ocr-* packages at the same version, six
+      binaries plus sha256sum.txt in the release assets. npm can lag a few minutes; re-check
+      before calling it a failure. Append results to SUMMARY.md and emit RELEASE-VERIFIED.
+    profile: sync-engineer
+    max_retries: 1
+    timeout_seconds: null
+    workdir: null
+    isolation: null
+    connectors: []
+    interactive: false
+  - id: cleanup_node
+    type: agent_task
+    title: Remove the scratch and report the final state
+    expected_duration: 5m
+    success_check: { marker: CLEANUP-DONE }
+    prompt: |
+      Finish the run. Remove the scratch directory (the path is in the sync report) only when
+      nothing runs out of it: a background watch or build using it as TMPDIR breaks when it
+      disappears; if something still runs, wait for it or defer with an explicit note.
+      Confirm git status is clean, print git log --oneline -3 and the tag state, report them in the run report (the record). Do not write extra files.
+      Emit CLEANUP-DONE.
+    profile: sync-engineer
+    max_retries: 1
+    timeout_seconds: null
+    workdir: null
+    isolation: null
+    connectors: []
+    interactive: false
+  - id: done
+    type: finish
+    expected_duration: 1m
+    outcome: success
+    prompt: "Sync complete: main and the upstream base tag are pushed, gates passed, the fork's claude-code work verified preserved."
+  - id: failed
+    type: finish
+    expected_duration: 1m
+    outcome: failure
+    prompt: "The sync did not complete. Nothing was pushed unless the push and release nodes already ran. Check the node report and SUMMARY.md."
+  - id: rejected
+    type: finish
+    expected_duration: 1m
+    outcome: failure
+    prompt: "The owner rejected the push at the gate; everything stays local. The scratch directory is kept for inspection."
+edges:
+  - { from: start, to: sync, condition: null, fallback: false, join: null }
+  - { from: sync, to: proof_review, condition: { type: node_status, node: sync, equals: success }, fallback: false, join: null }
+  - { from: sync, to: failed, condition: null, fallback: true, join: null }
+  - { from: proof_review, to: push_node, condition: { type: review_status, equals: approve }, fallback: false, join: null }
+  - { from: proof_review, to: rejected, condition: { type: review_status, equals: reject }, fallback: false, join: null }
+  - { from: push_node, to: release_decision, condition: { type: node_status, node: push_node, equals: success }, fallback: false, join: null }
+  - { from: push_node, to: failed, condition: null, fallback: true, join: null }
+  - { from: release_decision, to: release_node, condition: { type: review_status, equals: release }, fallback: false, join: null }
+  - { from: release_decision, to: cleanup_node, condition: { type: review_status, equals: skip }, fallback: false, join: null }
+  - { from: release_node, to: cleanup_node, condition: { type: node_status, node: release_node, equals: success }, fallback: false, join: null }
+  - { from: release_node, to: failed, condition: null, fallback: true, join: null }
+  - { from: cleanup_node, to: done, condition: { type: node_status, node: cleanup_node, equals: success }, fallback: false, join: null }
+  - { from: cleanup_node, to: failed, condition: null, fallback: true, join: null }
