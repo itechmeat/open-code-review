@@ -9,3 +9,5 @@ locks/
 decisions.jsonl
 memory/
 problems/
+scenario-runs/
+launch-challenges/
