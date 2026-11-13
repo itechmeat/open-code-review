@@ -39,12 +39,15 @@ func newRunStopScanAgent(t *testing.T, client llm.LLMClient, tpl template.ScanTe
 		LLMClient:        client,
 		CommentCollector: tool.NewCommentCollector(),
 		Tools:            tool.NewRegistry(),
-		MaxConcurrency:   1,
-		Provider:         "claude-code",
-		Session:          session.New(t.TempDir(), "main", "test", session.SessionOptions{ReviewMode: session.ReviewModeFullScan}),
-		SkipPlan:         skipPlan,
-		SkipDedup:        true,
-		SkipSummary:      true,
+		// The loop only executes tool calls the request declares, so the
+		// fake's task_done answer must stay declared here.
+		MainToolDefs:   []llm.ToolDef{{Type: "function", Function: llm.FunctionDef{Name: "task_done"}}},
+		MaxConcurrency: 1,
+		Provider:       "claude-code",
+		Session:        session.New(t.TempDir(), "main", "test", session.SessionOptions{ReviewMode: session.ReviewModeFullScan}),
+		SkipPlan:       skipPlan,
+		SkipDedup:      true,
+		SkipSummary:    true,
 	})
 	a.items = []model.ScanItem{
 		{Path: "a/one.go", Content: "package a\n", LineCount: 1},
