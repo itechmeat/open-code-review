@@ -104,14 +104,17 @@ func TestReviewResultErrorUsesManifestTerminalState(t *testing.T) {
 			Failed:    []session.CoverageItem{{ItemID: "b", Classification: session.FailureTimeout}},
 		},
 	}
-	if err := reviewResultError(nil, timeoutPartial); err == nil ||
-		!strings.Contains(err.Error(), "1 of 2 selected item(s) failed") {
-		t.Fatalf("partial timeout must produce a process error with item counts: %v", err)
+	// A partial run is judged after its results are published, by
+	// partialResultError (exit 3 unless the only losses were budget stops —
+	// see TestPartialResultErrorExitsThreeUnlessOnlyBudgetOrAllowed). It never
+	// lands here, so this command returns no process error for it.
+	if err := reviewResultError(nil, timeoutPartial); err != nil {
+		t.Fatalf("partial timeout must stay publishable here: %v", err)
 	}
 	providerPartial := *timeoutPartial
 	providerPartial.Coverage.Failed = []session.CoverageItem{{ItemID: "b", Classification: session.FailureProvider}}
-	if err := reviewResultError(nil, &providerPartial); err == nil {
-		t.Fatal("partial provider failure must produce a process error")
+	if err := reviewResultError(nil, &providerPartial); err != nil {
+		t.Fatalf("partial provider failure must stay publishable here: %v", err)
 	}
 	if err := reviewResultError(nil, &session.RunManifest{TerminalState: session.StateFailed}); err == nil {
 		t.Fatal("failed manifest must produce a process error")
@@ -151,8 +154,8 @@ func TestReviewResultErrorUsesManifestTerminalState(t *testing.T) {
 		session.CoverageItem{ItemID: "c", Classification: session.FailureTimeout})
 	mixedPartial.Coverage.Selected = append(mixedPartial.Coverage.Selected,
 		session.CoverageItem{ItemID: "c"})
-	if err := reviewResultError(nil, &mixedPartial); err == nil {
-		t.Fatal("a timeout must make mixed budget coverage exit non-zero")
+	if err := reviewResultError(nil, &mixedPartial); err != nil {
+		t.Fatalf("a timeout in mixed budget coverage must stay publishable here: %v", err)
 	}
 	// When the cap stopped the run before any file completed, every selected item
 	// is failed(budget): no usable coverage, so it must exit non-zero even though
