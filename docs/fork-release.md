@@ -6,13 +6,13 @@ This repository is a fork of [alibaba/open-code-review](https://github.com/aliba
 
 1. Upstream is the source of truth. The fork tracks it and carries a small set of changes on top.
 2. The diff against upstream stays small and mechanical: values are edited in place, files are not reorganised, and fork-only prose lives in this file and in the "About this fork" note of each README.
-3. The fork is rebased onto upstream release tags, not merged. Each fork change stays a clean commit that can be re-applied or offered upstream on its own.
+3. The fork is rebased onto upstream main, not merged. Each fork change stays a clean commit that can be re-applied or offered upstream on its own. A release tag pins the rebase only for an occasional consistency sync; the regular sync tracks the tip.
 4. Fixes that are useful to every user go upstream as their own pull request. The fork carries them only until they arrive through a rebase.
 5. The website at open-codereview.ai, the IDE extensions, the composite GitHub Action and the CI examples are upstream's. The fork leaves them unchanged, so their install commands still name the upstream package.
 
 ## Versions and tags
 
-1. A fork release is tagged `v<upstream version>-fork.<n>`, for example `v1.12.11-fork.1`. `<upstream version>` is the upstream tag the fork is rebased onto; `<n>` starts at 1 and grows with each fork release on the same base. The fork never bumps the major, minor or patch number on its own: the core version always equals the upstream base, and a prerelease sorts below that base, so a fork version never runs ahead of upstream.
+1. A fork release is tagged `v<upstream version>-fork.<n>`, for example `v1.12.11-fork.1`. `<upstream version>` is the newest upstream tag reachable from the release commit, which is not necessarily the commit the fork is rebased onto; `<n>` starts at 1 and grows with each fork release on the same base. The fork never bumps the major, minor or patch number on its own: the core version always equals the upstream base, and a prerelease sorts below that base, so a fork version never runs ahead of upstream.
 2. The npm version is the tag without the leading `v`. It is a valid semver prerelease, and it sorts as expected:
    1. `1.12.11-fork.10` is newer than `1.12.11-fork.2`, because numeric identifiers compare numerically.
    2. Any `1.12.12-fork.<n>` is newer than every `1.12.11-fork.<n>`.
@@ -26,9 +26,9 @@ This repository is a fork of [alibaba/open-code-review](https://github.com/aliba
 
 ## Release procedure
 
-1. Rebase the fork onto the new upstream tag, for example `git fetch upstream --tags && git rebase v1.12.11`, resolve conflicts, and run the gates: `make check`, `make test`, `npm run test:launcher`, `npm run test:update`, `npm run test:github-actions`.
+1. Rebase the fork onto upstream main, for example `git fetch upstream --tags && git rebase upstream/main` (pin a release tag with `git rebase <tag>` for a consistency sync), resolve conflicts, and run the gates: `make check`, `make test`, `npm run test:launcher`, `npm run test:update`, `npm run test:github-actions`.
 2. Merge the result into `main` on this repository.
-3. Push exactly the upstream base tag, and no other upstream tags: `git push origin v1.12.11`. The release notes are generated from the previous tag reachable from the release commit. With the base tag present, the notes list only the fork's own commits. Without it they fall back to an older upstream tag and mix in upstream commits. The push queues a Release run of the upstream workflow version (see Versions and tags, item 3); cancel it: `gh run list -R itechmeat/open-code-review --workflow release.yml --json databaseId,headBranch -q '.[] | select(.headBranch == "v1.12.11") | .databaseId' | xargs -r -I{} gh run cancel {} -R itechmeat/open-code-review`.
+3. Push exactly the upstream base tag — the newest upstream tag reachable from the release commit — and no other upstream tags: `git push origin v1.12.11`. The release notes are generated from the previous tag reachable from the release commit. With the base tag present, the notes list the fork's own commits plus the upstream commits the release carries past that tag. Without it they fall back to an older upstream tag and mix in more upstream commits. The push queues a Release run of the upstream workflow version (see Versions and tags, item 3); cancel it: `gh run list -R itechmeat/open-code-review --workflow release.yml --json databaseId,headBranch -q '.[] | select(.headBranch == "v1.12.11") | .databaseId' | xargs -r -I{} gh run cancel {} -R itechmeat/open-code-review`.
 4. Tag the fork release on `main` and push it:
    1. `git tag -a v1.12.11-fork.1 -m v1.12.11-fork.1`
    2. `git push origin v1.12.11-fork.1`
