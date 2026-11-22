@@ -1,1 +1,2 @@
 {"change_id":"556c607c8ad040bf93ca8e008ac9e73b","at_ms":1794998528598,"from":"1.1.0","to":"1.2.0","by":{"kind":"person","surface":"cli"},"reason":"track the upstream main tip; release tags stay the version anchor and consistency pins"}
+{"change_id": "90f18d4efaa04b4f8bed6a096d36067c", "at_ms": 1795347743891, "from": "1.2.0", "to": "1.2.1", "by": {"kind": "person", "surface": "cli"}, "reason": "publish step 3: land main with a pinned force-with-lease; a rebased branch cannot fast-forward over the pre-rebase fork shas (run ocr-upstream-sync-1795345592899, PR 11)"}
